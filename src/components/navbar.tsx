@@ -1,6 +1,11 @@
 "use client";
 import Link from "next/link";
-import { motion, useScroll, useTransform } from "framer-motion";
+import {
+  motion,
+  useScroll,
+  useTransform,
+  AnimatePresence,
+} from "framer-motion";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -10,6 +15,7 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const { scrollY } = useScroll();
   const [mounted, setMounted] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Transform values for smooth transitions
   const backgroundColor = useTransform(
@@ -121,12 +127,50 @@ const Navbar = () => {
 
           <div className="md:hidden flex items-center space-x-2">
             <ThemeToggle />
-            <Button variant="outline" size="icon">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
               <Menu className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden bg-background border-t border-border"
+          >
+            <div className="px-4 pt-2 pb-3 space-y-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  {item.name}
+                </Link>
+              ))}
+              <div className="px-3 py-2">
+                <Button
+                  asChild
+                  className="w-full bg-gradient-to-r from-justice-blue to-justice-pink hover:from-justice-blue/80 hover:to-justice-pink/80"
+                >
+                  <Link href="/demo" onClick={() => setIsMenuOpen(false)}>
+                    Try Demo
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
     </motion.nav>

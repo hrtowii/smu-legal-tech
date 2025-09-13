@@ -3,16 +3,46 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-
 import { Upload, Brain, Download, Shield } from "lucide-react";
 import { HoverBorderGradient } from "@/components/button";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+
+interface GridItemProps {
+  icon: React.ReactNode;
+  title: string;
+  description: React.ReactNode;
+}
+
+const GridItem = ({ icon, title, description }: GridItemProps) => {
+  return (
+    <div className="min-h-[16rem]">
+      <div className="relative h-full rounded-2xl md:rounded-3xl">
+        <GlowingEffect
+          blur={2}
+          borderWidth={2}
+          spread={80}
+          glow={true}
+          disabled={false}
+          proximity={64}
+          inactiveZone={0.01}
+        />
+        <div className="relative flex h-full flex-col justify-between gap-6 overflow-hidden rounded-xl p-6 md:p-6 dark:shadow-[0px_0px_27px_0px_#2D2D2D]">
+          <div className="relative flex flex-1 flex-col justify-between gap-3">
+            <div className="w-fit rounded-lg">{icon}</div>
+            <div className="space-y-3">
+              <h3 className="-tracking-4 pt-0.5 font-sans text-xl/[1.375rem] font-semibold text-balance text-black md:text-2xl/[1.875rem] dark:text-white">
+                {title}
+              </h3>
+              <h2 className="font-sans text-sm/[1.125rem] text-black md:text-base/[1.375rem] dark:text-neutral-400 [&_b]:md:font-semibold [&_strong]:md:font-semibold">
+                {description}
+              </h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function Home() {
   const [offsetY, setOffsetY] = useState(0);
@@ -128,18 +158,15 @@ export default function Home() {
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
             >
-              <Card className="h-full bg-white/60 backdrop-blur-md dark:bg-black/60">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-justice-blue/10 dark:bg-justice-blue/20 rounded-lg flex items-center justify-center mb-4">
+              <GridItem
+                icon={
+                  <div className="w-12 h-12 bg-justice-blue/10 dark:bg-justice-blue/20 rounded-lg flex items-center justify-center">
                     <Upload className="h-6 w-6 text-justice-blue dark:text-justice-blue/80" />
                   </div>
-                  <CardTitle>OCR Recognition</CardTitle>
-                  <CardDescription>
-                    Advanced handwriting recognition that adapts to messy,
-                    informal responses and varying writing styles.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+                }
+                title="OCR Recognition"
+                description="Advanced handwriting recognition that adapts to messy, informal responses and varying writing styles."
+              />
             </motion.div>
 
             <motion.div
@@ -148,18 +175,15 @@ export default function Home() {
               transition={{ duration: 0.8, delay: 0.2 }}
               viewport={{ once: true }}
             >
-              <Card className="h-full bg-white/60 backdrop-blur-md dark:bg-black/60">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-justice-pink/10 dark:bg-justice-pink/20 rounded-lg flex items-center justify-center mb-4">
+              <GridItem
+                icon={
+                  <div className="w-12 h-12 bg-justice-pink/10 dark:bg-justice-pink/20 rounded-lg flex items-center justify-center">
                     <Brain className="h-6 w-6 text-justice-pink dark:text-justice-pink/80" />
                   </div>
-                  <CardTitle>AI Processing</CardTitle>
-                  <CardDescription>
-                    Intelligent mapping of handwritten responses to structured
-                    formats, with built-in human review flagging.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+                }
+                title="AI Processing"
+                description="Intelligent mapping of handwritten responses to structured formats, with built-in human review flagging."
+              />
             </motion.div>
 
             <motion.div
@@ -168,18 +192,15 @@ export default function Home() {
               transition={{ duration: 0.8, delay: 0.4 }}
               viewport={{ once: true }}
             >
-              <Card className="h-full bg-white/60 backdrop-blur-md dark:bg-black/60">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mb-4">
+              <GridItem
+                icon={
+                  <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
                     <Download className="h-6 w-6 text-green-600 dark:text-green-400" />
                   </div>
-                  <CardTitle>Export & Save</CardTitle>
-                  <CardDescription>
-                    Download as CSV or integrate directly into your case
-                    management system for instant use.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+                }
+                title="Export & Save"
+                description="Download as CSV or integrate directly into your case management system for instant use. Works with Excel as well!"
+              />
             </motion.div>
           </div>
 
