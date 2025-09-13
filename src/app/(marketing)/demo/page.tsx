@@ -214,9 +214,6 @@ export default function Demo() {
     );
   };
 
-  /* -----------------------------------------------------------------
-     VALIDATION BEFORE MOVING TO THE NEXT STEP
-     ----------------------------------------------------------------- */
   const goToExportStep = async () => {
     setIsValidating(true);
 
@@ -249,9 +246,6 @@ export default function Demo() {
     }
   };
 
-  /* -----------------------------------------------------------------
-     Export / Save (unchanged)
-     ----------------------------------------------------------------- */
   const exportToCSV = async () => {
     if (!extractedData) return;
 
@@ -272,7 +266,7 @@ export default function Demo() {
       ]);
       rows.push([
         `Applicant Income ${i + 1}`,
-        "Monthly Income (SGD)",
+        "Gross Monthly Income (SGD)",
         (inc.grossMonthlyIncomeSGD ?? 0).toString(),
       ]);
       rows.push([
@@ -296,7 +290,7 @@ export default function Demo() {
       ]);
       rows.push([
         `Household Income ${i + 1}`,
-        "Monthly Income (SGD)",
+        "Gross Monthly Income (SGD)",
         (inc.grossMonthlyIncomeSGD ?? 0).toString(),
       ]);
     });

@@ -31,9 +31,9 @@ export default function About() {
         transition={{ duration: 0.6 }}
         className="text-center mb-16"
       >
-        <Badge variant="outline" className="mb-4">
+        {/*<Badge variant="outline" className="mb-4">
           Trusted by Legal Professionals
-        </Badge>
+        </Badge>*/}
         <h1 className="text-4xl md:text-5xl font-bold mb-6">
           Transforming Legal Workflows
         </h1>
@@ -51,7 +51,7 @@ export default function About() {
           viewport={{ once: true }}
         >
           <h2 className="text-3xl font-bold mb-8">The Challenge</h2>
-          <Alert className="mb-8 border-destructive/50 text-destructive dark:border-destructive">
+          <Alert className="mb-8 border-destructive/50 text-destructive dark:border-destructive bg-red-50 dark:bg-red-950/50">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Critical Workflow Inefficiency</AlertTitle>
             <AlertDescription className="text-lg leading-relaxed mt-2">
@@ -151,25 +151,25 @@ export default function About() {
           <h2 className="text-3xl font-bold mb-8">Who Benefits</h2>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="bg-blue-50/50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800">
+            <Card className="bg-justice-blue/20 dark:bg-justice-blue/30 border-justice-blue/50 dark:border-justice-blue/70">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                <CardTitle className="flex items-center gap-2 text-justice-blue dark:text-justice-blue/80">
                   <Scale className="h-5 w-5" />
                   Law Firms
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2 text-blue-600 dark:text-blue-400">
+                <ul className="space-y-2 text-justice-blue dark:text-justice-blue/70">
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    <CheckCircle className="h-4 w-4 text-justice-blue" />
                     Reduce manual data entry time
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    <CheckCircle className="h-4 w-4 text-justice-blue" />
                     Minimize transcription errors
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    <CheckCircle className="h-4 w-4 text-justice-blue" />
                     Accelerate case intake process
                   </li>
                   <li className="flex items-center gap-2">
@@ -209,29 +209,29 @@ export default function About() {
               </CardContent>
             </Card>
 
-            <Card className="bg-purple-50/50 dark:bg-purple-950/50 border-purple-200 dark:border-purple-800">
+            <Card className="bg-justice-pink/20 dark:bg-justice-pink/30 border-justice-pink/50 dark:border-justice-pink/70">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                <CardTitle className="flex items-center gap-2 text-justice-pink dark:text-justice-pink/80">
                   <Building className="h-5 w-5" />
                   Courts
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2 text-purple-600 dark:text-purple-400">
+                <ul className="space-y-2 text-justice-pink dark:text-justice-pink/70">
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-purple-600" />
+                    <CheckCircle className="h-4 w-4 text-justice-pink" />
                     Streamline case processing
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-purple-600" />
+                    <CheckCircle className="h-4 w-4 text-justice-pink" />
                     Improve data searchability
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-purple-600" />
+                    <CheckCircle className="h-4 w-4 text-justice-pink" />
                     Reduce administrative burden
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-purple-600" />
+                    <CheckCircle className="h-4 w-4 text-justice-pink" />
                     Enable digital case management
                   </li>
                 </ul>
@@ -248,7 +248,7 @@ export default function About() {
         >
           <h2 className="text-3xl font-bold mb-8">Our Solution</h2>
 
-          <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0">
+          <Card className="bg-gradient-to-r from-justice-blue to-justice-pink text-white border-0">
             <CardHeader>
               <CardTitle className="text-2xl text-white">
                 Intelligent OCR + AI Processing

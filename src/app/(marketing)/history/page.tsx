@@ -178,7 +178,7 @@ export default function History() {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-justice-blue mx-auto"></div>
           <p className="text-muted-foreground mt-4">
             Loading financial form history...
           </p>
@@ -238,7 +238,7 @@ export default function History() {
           <div className="mt-6">
             <a
               href="/demo"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold"
+              className="bg-justice-blue hover:bg-justice-blue/80 text-white px-4 py-2 rounded-lg font-semibold"
             >
               Process a Form
             </a>
@@ -328,7 +328,7 @@ export default function History() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
                         onClick={() => setSelectedRecord(record)}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="text-justice-blue hover:text-justice-blue/80"
                       >
                         View
                       </button>
@@ -396,7 +396,7 @@ export default function History() {
                       {selectedRecord.applicantIncome.map((income, index) => (
                         <div
                           key={index}
-                          className="p-3 bg-blue-50/50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded"
+                          className="p-3 bg-justice-blue/20 dark:bg-justice-blue/30 border border-justice-blue/50 dark:border-justice-blue/70 rounded"
                         >
                           <div className="grid md:grid-cols-3 gap-2 text-sm">
                             <div>
@@ -475,7 +475,7 @@ export default function History() {
                         (income, index) => (
                           <div
                             key={index}
-                            className="p-3 bg-purple-50/50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 rounded"
+                            className="p-3 bg-justice-pink/20 dark:bg-justice-pink/30 border border-justice-pink/50 dark:border-justice-pink/70 rounded"
                           >
                             <div className="grid md:grid-cols-2 gap-2 text-sm">
                               <div>

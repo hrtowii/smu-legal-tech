@@ -97,7 +97,7 @@ const Navbar = () => {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-blue-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-justice-blue/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   </Link>
                 </motion.div>
               ))}
@@ -113,7 +113,7 @@ const Navbar = () => {
             <ThemeToggle />
             <Button
               asChild
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500"
+              className="bg-gradient-to-r from-justice-blue to-justice-pink hover:from-justice-blue/80 hover:to-justice-pink/80"
             >
               <Link href="/demo">Try Demo</Link>
             </Button>

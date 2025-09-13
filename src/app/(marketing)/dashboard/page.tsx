@@ -48,11 +48,11 @@ interface AnalyticsData {
 }
 
 const COLORS = [
-  "#8884d8",
+  "#6f70ff",
   "#82ca9d",
   "#ffc658",
   "#ff7300",
-  "#0088fe",
+  "#efa9ff",
   "#00c49f",
   "#ffbb28",
   "#ff8042",
@@ -142,7 +142,7 @@ export default function AnalyticsDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="p-6 rounded-lg shadow">
           <h3 className="text-lg font-semibold text-foreground">Total Forms</h3>
-          <p className="text-3xl font-bold text-blue-600">
+          <p className="text-3xl font-bold text-justice-blue">
             {analytics.summaryStats?.total_forms || 0}
           </p>
         </div>

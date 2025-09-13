@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+
 import {
   Card,
   CardContent,
@@ -10,8 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Upload, Brain, Download, Shield, Zap, Users } from "lucide-react";
+
+import { Upload, Brain, Download, Shield } from "lucide-react";
+import { HoverBorderGradient } from "@/components/button";
 
 export default function Home() {
   const [offsetY, setOffsetY] = useState(0);
@@ -24,7 +25,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background">
-      <section className="relative min-h-screen flex flex-col justify-center items-center text-center px-6 pt-24 pb-12 bg-gradient-to-br from-blue-50/50 via-background to-indigo-50/50 dark:from-slate-900/50 dark:via-background dark:to-slate-800/50">
+      <section className="relative min-h-screen flex flex-col justify-center items-center text-center px-6 pt-24 pb-12 bg-gradient-to-br from-justice-blue/20 via-background to-justice-pink/20 dark:from-slate-900/50 dark:via-background dark:to-slate-800/50">
+        <motion.img
+          src="https://png.pngtree.com/png-vector/20240602/ourmid/pngtree-luxurious-golden-metal-texture-with-shimmering-shine-png-image_12357421.png"
+          alt="Form illustration"
+          style={{ transform: `translateY(${offsetY * 0.3}px)` }}
+          className="absolute top-0 left-0 w-full h-full object-cover opacity-60"
+        />
         <div className="absolute inset-0 bg-grid-pattern opacity-40"></div>
 
         <motion.div
@@ -33,22 +40,18 @@ export default function Home() {
           transition={{ duration: 1 }}
           className="relative z-10 max-w-5xl mx-auto"
         >
-          {/*<Badge variant="outline" className="mb-6 text-sm font-medium">
-            Powered by AI • Trusted by Legal Professionals
-          </Badge>*/}
-
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold mb-6">
             Upload
             <motion.span
               initial={{ backgroundPosition: "0% 50%" }}
               animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
               transition={{
-                duration: 3,
+                duration: 2.5,
                 repeat: Infinity,
                 repeatType: "loop",
                 ease: "linear",
               }}
-              className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent bg-[length:200%_100%]"
+              className="bg-[linear-gradient(160deg,theme(colors.justice.blue),theme(colors.justice.pink),theme(colors.justice.blue))] bg-clip-text text-transparent bg-[length:200%_100%]"
             >
               Justice™
             </motion.span>
@@ -71,28 +74,38 @@ export default function Home() {
             transition={{ duration: 1, delay: 0.6 }}
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold"
-              asChild
+            <HoverBorderGradient
+              containerClassName="rounded-full"
+              as="button"
+              className="dark:bg-black bg-white text-black dark:text-white flex items-center space-x-2 px-8 py-4 text-l font-bold"
             >
-              <Link href="/demo" className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
+              <Link
+                href="/demo"
+                className="w-full h-full flex items-center justify-center"
+              >
+                <Upload className="h-5 w-5 mr-2" />
                 Try the Demo
               </Link>
-            </Button>
+            </HoverBorderGradient>
 
-            <Button size="lg" variant="outline" asChild>
-              <Link href="/about" className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
+            <HoverBorderGradient
+              containerClassName="rounded-full"
+              as="button"
+              className="dark:bg-white bg-black text-black dark:text-black flex items-center space-x-2 px-8 py-4 text-l font-bold"
+            >
+              <Link
+                href="/about"
+                className="w-full h-full flex items-center justify-center"
+              >
+                <Shield className="h-5 w-5 mr-2" />
                 Learn More
               </Link>
-            </Button>
+            </HoverBorderGradient>
           </motion.div>
         </motion.div>
       </section>
 
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 bg-white/30 backdrop-blur-xl dark:bg-black/30">
         <div className="container mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -115,15 +128,15 @@ export default function Home() {
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
             >
-              <Card className="h-full">
+              <Card className="h-full bg-white/60 backdrop-blur-md dark:bg-black/60">
                 <CardHeader>
-                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mb-4">
-                    <Upload className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  <div className="w-12 h-12 bg-justice-blue/10 dark:bg-justice-blue/20 rounded-lg flex items-center justify-center mb-4">
+                    <Upload className="h-6 w-6 text-justice-blue dark:text-justice-blue/80" />
                   </div>
-                  <CardTitle>Upload & Scan</CardTitle>
+                  <CardTitle>OCR Recognition</CardTitle>
                   <CardDescription>
-                    Upload handwritten forms in PDF, JPG, or PNG format. Our OCR
-                    technology handles messy handwriting and informal responses.
+                    Advanced handwriting recognition that adapts to messy,
+                    informal responses and varying writing styles.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -135,16 +148,15 @@ export default function Home() {
               transition={{ duration: 0.8, delay: 0.2 }}
               viewport={{ once: true }}
             >
-              <Card className="h-full">
+              <Card className="h-full bg-white/60 backdrop-blur-md dark:bg-black/60">
                 <CardHeader>
-                  <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mb-4">
-                    <Brain className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  <div className="w-12 h-12 bg-justice-pink/10 dark:bg-justice-pink/20 rounded-lg flex items-center justify-center mb-4">
+                    <Brain className="h-6 w-6 text-justice-pink dark:text-justice-pink/80" />
                   </div>
                   <CardTitle>AI Processing</CardTitle>
                   <CardDescription>
-                    Our AI intelligently maps handwritten responses to
-                    structured formats with confidence scoring and human review
-                    flagging.
+                    Intelligent mapping of handwritten responses to structured
+                    formats, with built-in human review flagging.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -156,15 +168,15 @@ export default function Home() {
               transition={{ duration: 0.8, delay: 0.4 }}
               viewport={{ once: true }}
             >
-              <Card className="h-full">
+              <Card className="h-full bg-white/60 backdrop-blur-md dark:bg-black/60">
                 <CardHeader>
                   <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mb-4">
                     <Download className="h-6 w-6 text-green-600 dark:text-green-400" />
                   </div>
-                  <CardTitle>Export & Integrate</CardTitle>
+                  <CardTitle>Export & Save</CardTitle>
                   <CardDescription>
                     Download as CSV or integrate directly into your case
-                    management system for immediate use by your team.
+                    management system for instant use.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -174,52 +186,18 @@ export default function Home() {
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
+            transition={{ duration: 1, delay: 0.3 }}
             viewport={{ once: true }}
-            className="text-center"
+            className="text-center mt-24"
           >
-            <Card className="max-w-4xl mx-auto bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 border-blue-200 dark:border-blue-800">
-              <CardHeader>
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <Users className="h-6 w-6 text-blue-600" />
-                  <Badge variant="outline">Trusted Solution</Badge>
-                </div>
-                <CardTitle className="text-2xl">
-                  Built for the Public Defender's Office
-                </CardTitle>
-                <CardDescription className="text-lg">
-                  Designed to handle real-world challenges of criminal defence
-                  aid applications, reducing manual workload while maintaining
-                  hardcopy accessibility for all applicants.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid sm:grid-cols-3 gap-6 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-blue-600">95%</div>
-                    <div className="text-sm text-muted-foreground">
-                      Accuracy Rate
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-purple-600">
-                      10x
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Faster Processing
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-green-600">
-                      100%
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Accessible Forms
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
+              Built for the Public Defender’s Office
+            </h2>
+            <p className="text-lg text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">
+              Designed to handle the real-world challenges of criminal defence
+              aid applications, reducing manual workload while keeping hardcopy
+              accessibility.
+            </p>
           </motion.div>
         </div>
       </section>
