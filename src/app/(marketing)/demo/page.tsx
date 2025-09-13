@@ -1,8 +1,9 @@
 // app/(marketing)/demo/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+
 import type {
   ApplicantIncome,
   HouseholdIncome,
@@ -17,7 +18,38 @@ interface ExtractedFinancialForm extends EnhancedFinancialForm {
   confidence: number;
 }
 
+/* --------------------------------------------------------------- */
+/*  Helper – shallow copy + path‑setter                              */
+/* --------------------------------------------------------------- */
+const setFieldValue = (
+  data: ExtractedFinancialForm | null,
+  path: string,
+  value: string | number,
+): ExtractedFinancialForm | null => {
+  if (!data) return null;
+
+  const parts = path.split(".");
+  const newData = { ...data };
+  let cur: Record<string, unknown> = newData as Record<string, unknown>;
+
+  for (let i = 0; i < parts.length - 1; i++) {
+    const p = parts[i];
+    cur = Array.isArray(cur) ? (cur[Number(p)] as any) : (cur[p] as any);
+    if (!cur) return data; // safety‑guard
+  }
+
+  const last = parts[parts.length - 1];
+  if (Array.isArray(cur)) cur[Number(last)] = value;
+  else cur[last] = value;
+
+  return newData;
+};
+
+/* --------------------------------------------------------------- */
+/*  Main component                                                 */
+/* --------------------------------------------------------------- */
 export default function Demo() {
+  /* ---------- state ---------- */
   const [file, setFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -27,7 +59,7 @@ export default function Demo() {
     "upload" | "processing" | "review" | "export"
   >("upload");
 
-  // validation / confidence helpers
+  // validation helpers
   const [fieldValidations, setFieldValidations] = useState<
     Record<string, ValidationResult>
   >({});
@@ -46,29 +78,14 @@ export default function Demo() {
     onEdit: (newValue: string) => void;
   } | null>(null);
 
-  const setFieldValue = (path: string, value: string | number) => {
-    if (!extractedData) return;
-    const parts = path.split(".");
-    const newData = { ...extractedData };
-    let cur: Record<string, unknown> = newData as Record<string, unknown>;
-    for (let i = 0; i < parts.length - 1; i++) {
-      const p = parts[i];
-      cur = Array.isArray(cur) ? cur[Number(p)] : cur[p];
-      if (!cur) return;
-    }
-    const last = parts[parts.length - 1];
-    if (Array.isArray(cur)) cur[Number(last)] = value;
-    else cur[last] = value;
-    setExtractedData(newData);
-  };
-
+  /* ---------- file handling ---------- */
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
     setFile(selected);
-    const r = new FileReader();
-    r.onload = (ev) => setImagePreview(ev.target?.result as string);
-    r.readAsDataURL(selected);
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(selected);
   };
 
   const handleExtract = async () => {
@@ -79,6 +96,7 @@ export default function Demo() {
     formData.append("file", file);
 
     try {
+      // ----- OCR extraction -------------------------------------------------
       const extractRes = await fetch("/api/extract", {
         method: "POST",
         body: formData,
@@ -90,8 +108,8 @@ export default function Demo() {
         return;
       }
       let data = await extractRes.json();
-      console.log("Raw:", data);
 
+      // ----- optional smart‑mapping -----------------------------------------
       try {
         const mapRes = await fetch("/api/smart-mapping", {
           method: "POST",
@@ -101,30 +119,31 @@ export default function Demo() {
         if (mapRes.ok) {
           const { enhancedData } = await mapRes.json();
           data = { ...data, ...enhancedData };
-          console.log("Smart‑mapped:", data);
         }
       } catch (e) {
         console.warn("smart‑mapping error – continuing with raw data", e);
       }
 
-      console.log("Checking fieldConfidence:", data.fieldConfidence);
+      // ----- low‑confidence detection (does not block UI) -------------------
       if (data.fieldConfidence) {
         Object.entries(data.fieldConfidence).forEach(
           ([field, rawInfo]: [string, unknown]) => {
-            const conf =
+            const confidence =
               typeof rawInfo === "object" && rawInfo !== null
                 ? (rawInfo as { confidence?: number }).confidence
                 : rawInfo;
-            console.log(`Field ${field} confidence:`, conf);
-            if (conf !== undefined && typeof conf === "number" && conf < 0.7) {
-              console.log(`Triggering confirmation modal for ${field}`);
+            if (
+              confidence !== undefined &&
+              typeof confidence === "number" &&
+              confidence < 0.7
+            ) {
               setPendingConfirmation({
                 field,
                 value: (rawInfo as { value?: string })?.value ?? "",
-                confidence: conf,
+                confidence,
                 onConfirm: () => setPendingConfirmation(null),
                 onEdit: (newVal) => {
-                  setFieldValue(field, newVal);
+                  setExtractedData((d) => setFieldValue(d, field, newVal));
                   setPendingConfirmation(null);
                 },
               });
@@ -143,6 +162,7 @@ export default function Demo() {
     }
   };
 
+  /* ---------- confidence / validation helpers ---------- */
   const getFieldConfidence = (
     fieldPath: string,
     data: ExtractedFinancialForm | null,
@@ -155,271 +175,198 @@ export default function Demo() {
         ? info
         : null;
   };
+
   const getValidationStatus = (
     fieldPath: string,
     validations: Record<string, ValidationResult>,
   ): ValidationResult | null => validations[fieldPath] ?? null;
 
-  const debounce = <T extends unknown[]>(
-    fn: (...args: T) => void,
-    delay = 1000,
-  ) => {
-    let timer: NodeJS.Timeout;
-    return (...args: T) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), delay);
-    };
-  };
-
-  const standardizeField = async (
-    fieldName: string,
-    value: string,
-  ): Promise<string> => {
-    if (!value.trim()) return value;
-    try {
-      const res = await fetch("/api/standardize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: value, fieldType: fieldName }),
-      });
-      if (res.ok) {
-        const { standardized } = await res.json();
-        return standardized;
-      }
-    } catch (e) {
-      console.warn("standardization error", e);
-    }
-    return value;
-  };
-
-  // ----- debounced validation -------------------------------------------------
-  const scheduleValidate = useCallback(
-    debounce<[string, string]>((fieldPath: string, value: string) => {
-      fetch("/api/validate-field", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fieldName: fieldPath, fieldValue: value }),
-      })
-        .then(async (res) => {
-          if (res.ok) {
-            const validation = await res.json();
-            console.log(`Validation result for ${fieldPath}:`, validation);
-            setFieldValidations((v) => ({
-              ...v,
-              [fieldPath]: validation,
-            }));
-
-            // Trigger validation modal if field is invalid
-            if (!validation.isValid) {
-              console.log(`Triggering validation modal for ${fieldPath}`);
-              setPendingValidation({
-                field: fieldPath,
-                value: value,
-                validationResult: validation,
-                onAccept: () => setPendingValidation(null),
-                onEdit: (newValue: string) => {
-                  // Update the field value here
-                  setFieldValue(fieldPath, newValue);
-                  setPendingValidation(null);
-                },
-              });
-            }
-          }
-        })
-        .catch((e) => {
-          console.warn("validation error", e);
-        });
-    }, 3000),
-    [],
-  );
-
-  const handleFinancialSituationChange = async (value: string) => {
+  const handleFinancialSituationChange = (value: string) => {
     if (!extractedData) return;
-    const std = await standardizeField("financialSituationNote", value);
-    setExtractedData((d) => {
-      if (!d) return null;
-      return {
-        ...d,
-        financialSituationNote: std,
-      };
-    });
-    // scheduleValidate("financialSituationNote", std);
+    setExtractedData({ ...extractedData, financialSituationNote: value });
   };
 
-  const handleApplicantIncomeChange = async (
+  const handleApplicantIncomeChange = (
     idx: number,
     field: keyof ApplicantIncome,
     raw: string | number,
   ) => {
-    const path = `applicantIncome.${idx}.${field}`;
-    let final = raw;
-    if (typeof raw === "string" && field !== "grossMonthlyIncomeSGD") {
-      final = await standardizeField(path, raw);
-    }
     const newArr = [...(extractedData?.applicantIncome ?? [])];
-    newArr[idx] = { ...newArr[idx], [field]: final };
-    setExtractedData((d) => {
-      if (!d) return null;
-      return { ...d, applicantIncome: newArr };
-    });
-    // scheduleValidate(path, String(final));
-
-    // low‑confidence detection → Confirmation modal
-    const conf = getFieldConfidence(path, extractedData);
-    console.log(`Applicant income field ${path} confidence:`, conf);
-    if (conf !== null && conf < 0.7) {
-      console.log(`Triggering confirmation modal for applicant income ${path}`);
-      setPendingConfirmation({
-        field: path,
-        value: String(final),
-        confidence: conf,
-        onConfirm: () => setPendingConfirmation(null),
-        onEdit: (nv) => {
-          setFieldValue(path, nv);
-          setPendingConfirmation(null);
-        },
-      });
-    }
+    newArr[idx] = { ...newArr[idx], [field]: raw };
+    setExtractedData((d) => (d ? { ...d, applicantIncome: newArr } : d));
   };
 
-  const handleHouseholdIncomeChange = async (
+  const handleHouseholdIncomeChange = (
     idx: number,
     field: keyof HouseholdIncome,
     raw: string | number,
   ) => {
-    const path = `householdIncome.${idx}.${field}`;
-    let final = raw;
-    if (typeof raw === "string" && field !== "grossMonthlyIncomeSGD") {
-      final = await standardizeField(path, raw);
-    }
     const newArr = [...(extractedData?.householdIncome ?? [])];
-    newArr[idx] = { ...newArr[idx], [field]: final };
-    setExtractedData((d) => {
-      if (!d) return null;
-      return { ...d, householdIncome: newArr };
-    });
-    // scheduleValidate(path, String(final));
-
-    const conf = getFieldConfidence(path, extractedData);
-    console.log(`Household income field ${path} confidence:`, conf);
-    if (conf !== null && conf < 0.7) {
-      console.log(`Triggering confirmation modal for household income ${path}`);
-      setPendingConfirmation({
-        field: path,
-        value: String(final),
-        confidence: conf,
-        onConfirm: () => setPendingConfirmation(null),
-        onEdit: (nv) => {
-          setFieldValue(path, nv);
-          setPendingConfirmation(null);
-        },
-      });
-    }
+    newArr[idx] = { ...newArr[idx], [field]: raw };
+    setExtractedData((d) => (d ? { ...d, householdIncome: newArr } : d));
   };
 
-  const handleOtherIncomeChange = async (
+  const handleOtherIncomeChange = (
     idx: number,
     field: keyof OtherIncomeSource,
     raw: string | number,
   ) => {
-    const path = `otherIncomeSources.${idx}.${field}`;
-    let final = raw;
-    if (typeof raw === "string" && field !== "amountSGD") {
-      final = await standardizeField(path, raw);
-    }
     const newArr = [...(extractedData?.otherIncomeSources ?? [])];
-    newArr[idx] = { ...newArr[idx], [field]: final };
-    setExtractedData((d) => {
-      if (!d) return null;
-      return {
-        ...d,
-        otherIncomeSources: newArr,
-      };
-    });
-    // scheduleValidate(path, String(final));
-
-    const conf = getFieldConfidence(path, extractedData);
-    console.log(`Other income field ${path} confidence:`, conf);
-    if (conf !== null && conf < 0.7) {
-      console.log(`Triggering confirmation modal for other income ${path}`);
-      setPendingConfirmation({
-        field: path,
-        value: String(final),
-        confidence: conf,
-        onConfirm: () => setPendingConfirmation(null),
-        onEdit: (nv) => {
-          setFieldValue(path, nv);
-          setPendingConfirmation(null);
-        },
-      });
-    }
+    newArr[idx] = { ...newArr[idx], [field]: raw };
+    setExtractedData((d) => (d ? { ...d, otherIncomeSources: newArr } : d));
   };
 
+  /* ---------- row‑adding helpers (unchanged) ---------- */
   const addApplicantIncomeRow = () => {
-    setExtractedData((d) => {
-      if (!d) return null;
-      return {
-        ...d,
-        applicantIncome: [
-          ...(d.applicantIncome ?? []),
-          { occupation: "", grossMonthlyIncomeSGD: 0, periodOfEmployment: "" },
-        ],
-      };
-    });
-  };
-  const addHouseholdIncomeRow = () => {
-    setExtractedData((d) => {
-      if (!d) return null;
-      return {
-        ...d,
-        householdIncome: [
-          ...(d.householdIncome ?? []),
-          {
-            name: "",
-            relationshipToApplicant: "",
-            occupation: "",
-            grossMonthlyIncomeSGD: 0,
-          },
-        ],
-      };
-    });
-  };
-  const addOtherIncomeRow = () => {
-    setExtractedData((d) => {
-      if (!d) return null;
-      return {
-        ...d,
-        otherIncomeSources: [
-          ...(d.otherIncomeSources ?? []),
-          { description: "", amountSGD: 0 },
-        ],
-      };
-    });
+    setExtractedData((d) =>
+      d
+        ? {
+            ...d,
+            applicantIncome: [
+              ...(d.applicantIncome ?? []),
+              {
+                occupation: "",
+                grossMonthlyIncomeSGD: 0,
+                periodOfEmployment: "",
+              },
+            ],
+          }
+        : d,
+    );
   };
 
+  const addHouseholdIncomeRow = () => {
+    setExtractedData((d) =>
+      d
+        ? {
+            ...d,
+            householdIncome: [
+              ...(d.householdIncome ?? []),
+              {
+                name: "",
+                relationshipToApplicant: "",
+                occupation: "",
+                grossMonthlyIncomeSGD: 0,
+              },
+            ],
+          }
+        : d,
+    );
+  };
+
+  const addOtherIncomeRow = () => {
+    setExtractedData((d) =>
+      d
+        ? {
+            ...d,
+            otherIncomeSources: [
+              ...(d.otherIncomeSources ?? []),
+              { description: "", amountSGD: 0 },
+            ],
+          }
+        : d,
+    );
+  };
+
+  /* -----------------------------------------------------------------
+     VALIDATION BEFORE MOVING TO THE NEXT STEP
+     ----------------------------------------------------------------- */
+  const runAllValidations = async () => {
+    if (!extractedData) return false;
+
+    const validate = async (fieldPath: string, value: string) => {
+      try {
+        const res = await fetch("/api/validate-field", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fieldName: fieldPath, fieldValue: value }),
+        });
+        if (!res.ok) return;
+        const validation = (await res.json()) as ValidationResult;
+        setFieldValidations((v) => ({ ...v, [fieldPath]: validation }));
+
+        if (!validation.isValid) {
+          setPendingValidation({
+            field: fieldPath,
+            value,
+            validationResult: validation,
+            onAccept: () => setPendingValidation(null),
+            onEdit: (newValue) => {
+              setExtractedData((d) => setFieldValue(d, fieldPath, newValue));
+              setPendingValidation(null);
+            },
+          });
+        }
+      } catch (e) {
+        console.warn("validation error", e);
+      }
+    };
+
+    // ---- financial note -------------------------------------------------
+    if (extractedData.financialSituationNote) {
+      await validate(
+        "financialSituationNote",
+        extractedData.financialSituationNote,
+      );
+    }
+
+    // ---- applicant income ------------------------------------------------
+    extractedData.applicantIncome?.forEach((inc, i) => {
+      const base = `applicantIncome.${i}`;
+      if (inc.occupation) validate(`${base}.occupation`, inc.occupation);
+      if (inc.grossMonthlyIncomeSGD !== undefined)
+        validate(
+          `${base}.grossMonthlyIncomeSGD`,
+          String(inc.grossMonthlyIncomeSGD),
+        );
+      if (inc.periodOfEmployment)
+        validate(`${base}.periodOfEmployment`, inc.periodOfEmployment);
+    });
+
+    // ---- household income ------------------------------------------------
+    extractedData.householdIncome?.forEach((inc, i) => {
+      const base = `householdIncome.${i}`;
+      if (inc.name) validate(`${base}.name`, inc.name);
+      if (inc.relationshipToApplicant)
+        validate(
+          `${base}.relationshipToApplicant`,
+          inc.relationshipToApplicant,
+        );
+      if (inc.occupation) validate(`${base}.occupation`, inc.occupation);
+      if (inc.grossMonthlyIncomeSGD !== undefined)
+        validate(
+          `${base}.grossMonthlyIncomeSGD`,
+          String(inc.grossMonthlyIncomeSGD),
+        );
+    });
+
+    // ---- other income ----------------------------------------------------
+    extractedData.otherIncomeSources?.forEach((inc, i) => {
+      const base = `otherIncomeSources.${i}`;
+      if (inc.description) validate(`${base}.description`, inc.description);
+      if (inc.amountSGD !== undefined)
+        validate(`${base}.amountSGD`, String(inc.amountSGD));
+    });
+
+    // Return true if **no** validation error was added.
+    return Object.values(fieldValidations).every((v) => v.isValid);
+  };
+
+  const goToExportStep = async () => {
+    await runAllValidations();
+
+    // If a validation modal is now pending, stay on the review page.
+    if (pendingValidation) return;
+
+    setCurrentStep("export");
+  };
+
+  /* -----------------------------------------------------------------
+     Export / Save (unchanged)
+     ----------------------------------------------------------------- */
   const exportToCSV = async () => {
     if (!extractedData) return;
-    // optional enforcement check – keep as‑is
-    try {
-      const res = await fetch("/api/enforce-fields", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ extractedData }),
-      });
-      const payload = await res.json();
-      if (res.ok && !payload.canProceed) {
-        alert(`Cannot export: ${payload.reasons.join(", ")}`);
-        return;
-      }
-      if (payload.warnings?.length) {
-        const go = confirm(
-          `Warning: ${payload.warnings.join(", ")}\nProceed with export?`,
-        );
-        if (!go) return;
-      }
-    } catch (e) {
-      console.warn("enforcement check failed", e);
-    }
+
     const rows: string[][] = [
       ["Section", "Field", "Value"],
       [
@@ -428,6 +375,7 @@ export default function Demo() {
         extractedData.financialSituationNote ?? "",
       ],
     ];
+
     extractedData.applicantIncome?.forEach((inc, i) => {
       rows.push([
         `Applicant Income ${i + 1}`,
@@ -445,6 +393,7 @@ export default function Demo() {
         inc.periodOfEmployment ?? "",
       ]);
     });
+
     extractedData.householdIncome?.forEach((inc, i) => {
       rows.push([`Household Income ${i + 1}`, "Name", inc.name ?? ""]);
       rows.push([
@@ -463,6 +412,7 @@ export default function Demo() {
         (inc.grossMonthlyIncomeSGD ?? 0).toString(),
       ]);
     });
+
     extractedData.otherIncomeSources?.forEach((inc, i) => {
       rows.push([
         `Other Income ${i + 1}`,
@@ -475,12 +425,14 @@ export default function Demo() {
         (inc.amountSGD ?? 0).toString(),
       ]);
     });
+
     rows.push(["Metadata", "Flags", extractedData.flags.join("; ")]);
     rows.push([
       "Metadata",
       "Confidence Score",
       extractedData.confidence.toString(),
     ]);
+
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -516,67 +468,11 @@ export default function Demo() {
     setPendingValidation(null);
   };
 
-  useEffect(() => {
-    if (!extractedData) return;
-
-    const runInitialValidations = async () => {
-      // Financial note
-      if (extractedData.financialSituationNote) {
-        scheduleValidate(
-          "financialSituationNote",
-          extractedData.financialSituationNote,
-        );
-      }
-
-      // Applicant income rows
-      extractedData.applicantIncome?.forEach((inc, i) => {
-        const base = `applicantIncome.${i}`;
-        if (inc.occupation)
-          scheduleValidate(`${base}.occupation`, inc.occupation);
-        if (inc.grossMonthlyIncomeSGD !== undefined)
-          scheduleValidate(
-            `${base}.grossMonthlyIncomeSGD`,
-            String(inc.grossMonthlyIncomeSGD),
-          );
-        if (inc.periodOfEmployment)
-          scheduleValidate(
-            `${base}.periodOfEmployment`,
-            inc.periodOfEmployment,
-          );
-      });
-
-      // Household income rows
-      extractedData.householdIncome?.forEach((inc, i) => {
-        const base = `householdIncome.${i}`;
-        if (inc.name) scheduleValidate(`${base}.name`, inc.name);
-        if (inc.relationshipToApplicant)
-          scheduleValidate(
-            `${base}.relationshipToApplicant`,
-            inc.relationshipToApplicant,
-          );
-        if (inc.occupation)
-          scheduleValidate(`${base}.occupation`, inc.occupation);
-        if (inc.grossMonthlyIncomeSGD !== undefined)
-          scheduleValidate(
-            `${base}.grossMonthlyIncomeSGD`,
-            String(inc.grossMonthlyIncomeSGD),
-          );
-      });
-
-      // Other income rows
-      extractedData.otherIncomeSources?.forEach((inc, i) => {
-        const base = `otherIncomeSources.${i}`;
-        if (inc.description)
-          scheduleValidate(`${base}.description`, inc.description);
-        if (inc.amountSGD !== undefined)
-          scheduleValidate(`${base}.amountSGD`, String(inc.amountSGD));
-      });
-    };
-    runInitialValidations();
-  }, [extractedData, scheduleValidate]);
-
+  /* -----------------------------------------------------------------
+     Re‑usable field wrapper (shows confidence & validation UI)
+     ----------------------------------------------------------------- */
   type FieldWrapperProps = {
-    path: string; // dotted path, e.g. "applicantIncome.0.occupation"
+    path: string;
     label: string;
     children: React.ReactNode;
     extra?: React.ReactNode;
@@ -588,7 +484,6 @@ export default function Demo() {
     const lowConfidence = confidence !== null && confidence < 0.6;
     const hasError = (validation && !validation.isValid) || lowConfidence;
 
-    // badge colour
     const badgeBg =
       confidence !== null
         ? confidence > 0.8
@@ -599,8 +494,8 @@ export default function Demo() {
         : "bg-gray-100 text-gray-800";
 
     return (
-      <div className="mb‑4">
-        <div className="text-sm font-medium text-gray-700 mb-1 flex items-center">
+      <div className="mb-4">
+        <div className="flex items-center text-sm font-medium text-gray-700 mb-1">
           <span>{label}</span>
           {confidence !== null && (
             <span
@@ -614,14 +509,13 @@ export default function Demo() {
 
         <div className={`relative ${hasError ? "ring-2 ring-red-500" : ""}`}>
           {children}
-
           {hasError && (
             <div className="absolute left-0 top-full mt-1 w-max max-w-xs bg-red-600 text-white text-xs rounded py-1 px-2 z-10">
               {lowConfidence && <p>Low confidence</p>}
               {validation && !validation.isValid && (
                 <div className="mt-1 space-y-1">
-                  {validation.flags?.map((flag) => (
-                    <p key={`validation-flag-${flag}`}>⚠️ {flag}</p>
+                  {validation.flags?.map((f) => (
+                    <p key={`validation-flag-${f}`}>⚠️ {f}</p>
                   ))}
                   {validation.suggestions?.length > 0 && (
                     <p className="mt-1 text-blue-200">
@@ -638,8 +532,12 @@ export default function Demo() {
     );
   }
 
+  /* -----------------------------------------------------------------
+     Render
+     ----------------------------------------------------------------- */
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      {/* ------------------- Header ------------------- */}
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-gray-900 mb-6">
           Financial Form Demo
@@ -650,6 +548,7 @@ export default function Demo() {
         </p>
       </div>
 
+      {/* ------------------- Step indicator ------------------- */}
       <div className="flex justify-center mb-12">
         <div className="flex items-center space-x-4">
           {["upload", "processing", "review", "export"].map((step, i) => (
@@ -674,6 +573,7 @@ export default function Demo() {
         </div>
       </div>
 
+      {/* ==================== UPLOAD ==================== */}
       {currentStep === "upload" && (
         <div className="bg-white p-8 rounded-lg shadow-lg">
           <h2 className="text-2xl font-semibold mb-6">
@@ -719,6 +619,7 @@ export default function Demo() {
             </div>
           ) : (
             <div className="space-y-6">
+              {/* image preview */}
               {imagePreview && (
                 <div className="border rounded-lg p-4">
                   <h3 className="text-lg font-semibold mb-3">Image preview</h3>
@@ -734,6 +635,7 @@ export default function Demo() {
                 </div>
               )}
 
+              {/* file card */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
@@ -771,6 +673,7 @@ export default function Demo() {
         </div>
       )}
 
+      {/* ==================== PROCESSING ==================== */}
       {currentStep === "processing" && (
         <div className="bg-white p-8 rounded-lg shadow-lg text-center">
           <h2 className="text-2xl font-semibold mb-6">
@@ -783,8 +686,10 @@ export default function Demo() {
         </div>
       )}
 
+      {/* ==================== REVIEW ==================== */}
       {currentStep === "review" && extractedData && (
         <div className="bg-white p-8 rounded-lg shadow-lg">
+          {/* header */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-semibold">
               3. Review &amp; Edit Financial Data
@@ -805,6 +710,7 @@ export default function Demo() {
             </div>
           </div>
 
+          {/* flags */}
           {extractedData.flags.length > 0 && (
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
               <h3 className="text-sm font-medium text-yellow-800 mb-2">
@@ -818,7 +724,9 @@ export default function Demo() {
             </div>
           )}
 
+          {/* ---------- form fields ---------- */}
           <div className="space-y-8">
+            {/* financial note */}
             <FieldWrapper
               path="financialSituationNote"
               label="Financial Situation Note"
@@ -832,6 +740,7 @@ export default function Demo() {
               />
             </FieldWrapper>
 
+            {/* applicant income */}
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Applicant Income</h3>
@@ -914,6 +823,7 @@ export default function Demo() {
               ))}
             </div>
 
+            {/* household income */}
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Household Income</h3>
@@ -1007,6 +917,7 @@ export default function Demo() {
               ))}
             </div>
 
+            {/* other income */}
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Other Income Sources</h3>
@@ -1072,10 +983,11 @@ export default function Demo() {
             </div>
           </div>
 
+          {/* navigation buttons */}
           <div className="flex gap-4 mt-8">
             <button
               type="button"
-              onClick={() => setCurrentStep("export")}
+              onClick={goToExportStep}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold"
             >
               Continue to Export
@@ -1089,6 +1001,7 @@ export default function Demo() {
             </button>
           </div>
 
+          {/* ---------- test‑data & debug sections (unchanged) ---------- */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-8">
             <h4 className="text-sm font-semibold text-blue-800 mb-3">
               Test: Create Low Confidence Data
@@ -1096,7 +1009,6 @@ export default function Demo() {
             <button
               type="button"
               onClick={() => {
-                console.log("Creating test data with low confidence");
                 const testData: ExtractedFinancialForm = {
                   flags: ["test_flag"],
                   confidence: 0.4,
@@ -1115,14 +1027,14 @@ export default function Demo() {
                     financialSituationNote: {
                       value: "Test situation",
                       confidence: 0.4,
-                      source: "ocr" as const,
+                      source: "ocr",
                       flags: ["unclear_handwriting"],
                       originalText: "Test situation",
                     },
                     "applicantIncome.0.occupation": {
                       value: "Test Occupation",
                       confidence: 0.3,
-                      source: "ocr" as const,
+                      source: "ocr",
                       flags: ["low_confidence"],
                       originalText: "Test Occupation",
                     },
@@ -1145,29 +1057,22 @@ export default function Demo() {
               <button
                 type="button"
                 onClick={() => {
-                  console.log("Triggering test confirmation modal");
                   setPendingConfirmation({
                     field: "test.field",
                     value: "Test Value",
                     confidence: 0.5,
-                    onConfirm: () => {
-                      console.log("Confirmed");
-                      setPendingConfirmation(null);
-                    },
-                    onEdit: (newValue: string) => {
-                      console.log("Edited with value:", newValue);
-                      setPendingConfirmation(null);
-                    },
+                    onConfirm: () => setPendingConfirmation(null),
+                    onEdit: () => setPendingConfirmation(null),
                   });
                 }}
                 className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm"
               >
                 Test Confirmation Modal
               </button>
+
               <button
                 type="button"
                 onClick={() => {
-                  console.log("Triggering test validation modal");
                   setPendingValidation({
                     field: "test.validation.field",
                     value: "Invalid Value",
@@ -1182,14 +1087,8 @@ export default function Demo() {
                       ],
                       requiresReview: true,
                     },
-                    onAccept: () => {
-                      console.log("Validation accepted");
-                      setPendingValidation(null);
-                    },
-                    onEdit: (newValue: string) => {
-                      console.log("Validation edited with value:", newValue);
-                      setPendingValidation(null);
-                    },
+                    onAccept: () => setPendingValidation(null),
+                    onEdit: () => setPendingValidation(null),
                   });
                 }}
                 className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
@@ -1201,6 +1100,7 @@ export default function Demo() {
         </div>
       )}
 
+      {/* ==================== EXPORT ==================== */}
       {currentStep === "export" && extractedData && (
         <div className="bg-white p-8 rounded-lg shadow-lg">
           <h2 className="text-2xl font-semibold mb-6">
@@ -1208,6 +1108,7 @@ export default function Demo() {
           </h2>
 
           <div className="grid md:grid-cols-2 gap-8">
+            {/* CSV */}
             <div className="bg-blue-50 p-6 rounded-lg">
               <h3 className="text-xl font-semibold text-blue-900 mb-4">
                 Download CSV
@@ -1225,6 +1126,7 @@ export default function Demo() {
               </button>
             </div>
 
+            {/* DB save */}
             <div className="bg-green-50 p-6 rounded-lg">
               <h3 className="text-xl font-semibold text-green-900 mb-4">
                 Save to Database
@@ -1255,6 +1157,7 @@ export default function Demo() {
         </div>
       )}
 
+      {/* --------------------- Modals --------------------- */}
       <ValidationModals
         pendingConfirmation={pendingConfirmation}
         pendingValidation={

@@ -133,43 +133,50 @@ async function llmValidateField(
       messages: [
         {
           role: "system",
-          content: `You are an expert at validating form field data for legal financial documents. Your job is to assess whether field values are valid, complete, and appropriate.
+          content: `You are an expert at validating form field data for legal financial documents. You should ONLY flag GLARING issues that would prevent processing or cause serious problems.
 
-VALIDATION CRITERIA:
-1. Completeness: Is the field properly filled?
-2. Format: Is the format appropriate for the field type?
-3. Consistency: Does it make sense in context?
-4. Professional: Is it suitable for legal documentation?
+BE LENIENT - Only flag fields when there are:
+1. CRITICAL ERRORS: Completely invalid formats (e.g., text in number fields, obviously fake data)
+2. MISSING ESSENTIAL DATA: Completely empty required fields
+3. MAJOR INCONSISTENCIES: Data that makes no logical sense (e.g., negative income, impossible dates)
+4. SERIOUS FORMATTING ISSUES: Data that would break systems or processing
 
-FIELD TYPES TO VALIDATE:
-- Names: Should be proper names, not nicknames
-- Occupations: Should be professional job titles
-- Income: Should be realistic numbers
-- Relationships: Should be standard family relationships
-- Dates: Should be valid date ranges
-- Contact info: Should be properly formatted
+DO NOT FLAG:
+- Minor informalities (casual language is acceptable)
+- Slight variations in format (different date formats, spacing)
+- Common abbreviations or nicknames
+- Regional variations in language or terminology
+- Reasonable estimates or approximations
+
+ACCEPT AS VALID:
+- Common job titles even if informal (e.g., "driver", "cleaner", "helper")
+- Reasonable income ranges and estimates
+- Standard family relationships in any format
+- Names with common variations or cultural differences
+
+Only set "requiresReview": true for genuinely problematic data that needs human attention.
 
 Return a JSON object with this exact structure:
 {
   "isValid": true/false,
   "confidence": 0.85,
-  "flags": ["array", "of", "issues"],
+  "flags": ["array", "of", "serious_issues_only"],
   "suggestions": ["array", "of", "suggestions"],
   "standardizedValue": "corrected or standardized value",
   "requiresReview": true/false
 }
 
-FLAGS can include: "incomplete", "unclear", "format_error", "suspicious", "informal_language", "missing_context"
-SUGGESTIONS should provide actionable feedback for improvement.`,
+FLAGS should be rare and only include: "critical_error", "missing_required", "impossible_value", "system_breaking_format"
+SUGGESTIONS should only be provided for flagged issues.`,
         },
         {
           role: "user",
-          content: `Validate this field data:
+          content: `Validate this field data - ONLY flag if there are glaring, critical issues:
 Field Name: ${fieldName}
 Value: "${value}"
 ${context ? `Context: ${context}` : ""}
 
-Assess validity, suggest improvements, and determine if human review is needed.`,
+Only flag if the data is critically flawed or would break processing. Be lenient with minor issues.`,
         },
       ],
       temperature: 0.1,
