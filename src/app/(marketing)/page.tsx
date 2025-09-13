@@ -19,7 +19,7 @@ export default function Home() {
   return (
     <div className="bg-gradient-to-br from-blue-100 via-white to-indigo-200 min-h-screen overflow-x-hidden">
       {/* Hero Section */}
-      <section className="relative h-screen flex flex-col justify-center items-center text-center px-6 overflow-hidden">
+      <section className="relative h-screen flex flex-col justify-center items-center text-center px-6 overflow-hidden pt-24">
         {/* Parallax Image */}
         <motion.img
           src="https://png.pngtree.com/png-vector/20240602/ourmid/pngtree-luxurious-golden-metal-texture-with-shimmering-shine-png-image_12357421.png"
@@ -105,7 +105,7 @@ export default function Home() {
       </section>
 
       {/* Content Section */}
-      <section className="relative z-10 py-20 px-6 bg-white/30 backdrop-blur-xl">
+      <section className="relative z-10 py-24 px-6 bg-white/30 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
           {/* Card 1 */}
           <motion.div
