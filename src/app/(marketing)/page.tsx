@@ -3,11 +3,9 @@ import Link from "next/link";
 import localFont from "next/font/local";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-
-// const sfFont = localFont({
-//   src: "../../../public/fonts/SF-Pro.ttf", 
-//   variable: "--font-SF",
-// });
+import { ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { HoverBorderGradient } from "@/components/button";
 
 export default function Home() {
   const [offsetY, setOffsetY] = useState(0);
@@ -59,6 +57,7 @@ export default function Home() {
           >
             scribe
           </motion.span>
+          {" "} your forms.
         </motion.h1>
 
         <motion.p
@@ -67,7 +66,8 @@ export default function Home() {
           transition={{ duration: 1, delay: 0.3 }}
           className={`relative text-xl text-gray-600 max-w-2xl mx-auto mb-10`}
         >
-          your mom 
+          Automatically transfer your handwritten legal aid forms into
+          structured digital data accurately and quickly.
         </motion.p>
 
         <motion.div
@@ -76,18 +76,31 @@ export default function Home() {
           transition={{ duration: 1, delay: 0.6 }}
           className="relative flex gap-4"
         >
-          <Link
-            href="/demo"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full text-lg font-semibold transition-colors"
+          <HoverBorderGradient
+            containerClassName="rounded-full"
+            as="button"
+            className="dark:bg-black bg-white text-black dark:text-white flex items-center space-x-2 px-8 py-4 text-l font-bold"
           >
-            Try the Demo
-          </Link>
+            <Link
+              href="/demo"
+              className="w-full h-full flex items-center justify-center"
+            >
+              Try the Demo.
+            </Link>
+          </HoverBorderGradient>
+          
+          <HoverBorderGradient
+            containerClassName="rounded-full"
+            as="button"
+            className="dark:bg-white bg-black text-black dark:text-black flex items-center space-x-2 px-8 py-4 text-l font-bold"
+          >
           <Link
             href="/about"
-            className="backdrop-blur-md border border-gray-300 hover:border-gray-400 text-gray-700 px-8 py-3 rounded-full text-lg font-semibold transition-colors bg-white/50"
+            className="w-full h-full flex items-center justify-center"
           >
             Learn More
           </Link>
+          </HoverBorderGradient>
         </motion.div>
       </section>
 
