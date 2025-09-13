@@ -66,7 +66,7 @@ export default function AnalyticsDashboard() {
 
   const fetchAnalytics = useCallback(async () => {
     try {
-      const response = await fetch("/api/save");
+      const response = await fetch("/api/analytics");
       if (response.ok) {
         const data = await response.json();
         setAnalytics(data);
