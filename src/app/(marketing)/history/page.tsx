@@ -343,7 +343,6 @@ export default function History() {
         </div>
       )}
 
-      {/* Record Detail Modal */}
       {selectedRecord && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
@@ -372,7 +371,6 @@ export default function History() {
             </div>
 
             <div className="max-h-96 overflow-y-auto space-y-6">
-              {/* Financial Situation Note */}
               {selectedRecord.financialSituationNote && (
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">
@@ -384,7 +382,6 @@ export default function History() {
                 </div>
               )}
 
-              {/* Applicant Income */}
               {selectedRecord.applicantIncome &&
                 selectedRecord.applicantIncome.length > 0 && (
                   <div>
@@ -419,7 +416,6 @@ export default function History() {
                   </div>
                 )}
 
-              {/* Household Income */}
               {selectedRecord.householdIncome &&
                 selectedRecord.householdIncome.length > 0 && (
                   <div>
@@ -458,7 +454,6 @@ export default function History() {
                   </div>
                 )}
 
-              {/* Other Income Sources */}
               {selectedRecord.otherIncomeSources &&
                 selectedRecord.otherIncomeSources.length > 0 && (
                   <div>
@@ -488,7 +483,6 @@ export default function History() {
                   </div>
                 )}
 
-              {/* Total Income Summary */}
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center text-lg font-semibold">
                   <span>Total Monthly Income:</span>

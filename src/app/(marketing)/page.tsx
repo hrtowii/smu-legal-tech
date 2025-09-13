@@ -18,9 +18,7 @@ export default function Home() {
 
   return (
     <div className="bg-gradient-to-br from-blue-100 via-white to-indigo-200 min-h-screen overflow-x-hidden">
-      {/* Hero Section */}
       <section className="relative h-screen flex flex-col justify-center items-center text-center px-6 overflow-hidden pt-24">
-        {/* Parallax Image */}
         <motion.img
           src="https://png.pngtree.com/png-vector/20240602/ourmid/pngtree-luxurious-golden-metal-texture-with-shimmering-shine-png-image_12357421.png"
           alt="Form illustration"
@@ -28,14 +26,13 @@ export default function Home() {
           className="absolute top-0 left-0 w-full h-full object-cover opacity-60"
         />
 
-
-   <motion.h1
-  initial={{ opacity: 0, y: 40 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 1 }}
-  className="relative text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6"
->
-  Upload
+        <motion.h1
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1 }}
+          className="relative text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6"
+        >
+          Upload
           <motion.span
             initial={{ backgroundPosition: "0% 50%" }}
             animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
@@ -55,10 +52,8 @@ export default function Home() {
               display: "inline-block",
             }}
           >
-            
             Justice™
           </motion.span>
-          
         </motion.h1>
 
         <motion.p
@@ -89,26 +84,24 @@ export default function Home() {
               Try the Demo.
             </Link>
           </HoverBorderGradient>
-          
+
           <HoverBorderGradient
             containerClassName="rounded-full"
             as="button"
             className="dark:bg-white bg-black text-black dark:text-black flex items-center space-x-2 px-8 py-4 text-l font-bold"
           >
-          <Link
-            href="/about"
-            className="w-full h-full flex items-center justify-center"
-          >
-            Learn More
-          </Link>
+            <Link
+              href="/about"
+              className="w-full h-full flex items-center justify-center"
+            >
+              Learn More
+            </Link>
           </HoverBorderGradient>
         </motion.div>
       </section>
 
-      {/* Content Section */}
       <section className="relative z-10 py-24 px-6 bg-white/30 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
-          {/* Card 1 */}
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -123,7 +116,6 @@ export default function Home() {
             </p>
           </motion.div>
 
-          {/* Card 2 */}
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -138,7 +130,6 @@ export default function Home() {
             </p>
           </motion.div>
 
-          {/* Card 3 */}
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -154,7 +145,6 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* Bottom Section */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}

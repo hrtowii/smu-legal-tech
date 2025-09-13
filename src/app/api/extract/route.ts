@@ -91,6 +91,8 @@ const ExtractedFinancialFormSchema = z.object({
     .min(0)
     .max(1)
     .describe("Overall confidence score of the extraction (0-1)"),
+  confidence_per_field: z.record(z.string(), z.number()).optional(),
+  source_per_field: z.record(z.string(), z.string()).optional(),
 });
 
 // Manual JSON Schema definition as fallback
@@ -280,7 +282,7 @@ IMPORTANT: The AI will validate your JSON against a strict schema. Any deviation
     console.log("Raw AI response:", completion.choices[0].message.content);
 
     // Parse the JSON response manually since we're not using zodResponseFormat
-    let extractedData;
+    let extractedData: any;
     try {
       extractedData = JSON.parse(completion.choices[0].message.content || "{}");
     } catch (parseError) {

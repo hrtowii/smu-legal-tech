@@ -12,20 +12,16 @@ const Navbar = () => {
   const backgroundColor = useTransform(
     scrollY,
     [0, 100],
-    ["rgba(255, 255, 255, 0.0)", "rgba(255, 255, 255, 0.8)"]
+    ["rgba(255, 255, 255, 0.0)", "rgba(255, 255, 255, 0.8)"],
   );
-  
+
   const backdropBlur = useTransform(
     scrollY,
     [0, 100],
-    ["blur(0px)", "blur(20px)"]
+    ["blur(0px)", "blur(20px)"],
   );
 
-  const borderOpacity = useTransform(
-    scrollY,
-    [0, 100],
-    [0, 0.2]
-  );
+  const borderOpacity = useTransform(scrollY, [0, 100], [0, 0.2]);
 
   useEffect(() => {
     setMounted(true);
@@ -58,10 +54,9 @@ const Navbar = () => {
         className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"
         style={{ opacity: borderOpacity }}
       />
-      
+
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
-          {/* Logo */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -69,13 +64,18 @@ const Navbar = () => {
             className="flex-shrink-0"
           >
             <Link href="/" className="flex items-center">
-              <span className="text-2xl font-medium text-gray-900" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}>
+              <span
+                className="text-2xl font-medium text-gray-900"
+                style={{
+                  fontFamily:
+                    '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif',
+                }}
+              >
                 UploadJustice™
               </span>
             </Link>
           </motion.div>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-1">
               {navItems.map((item, index) => (
@@ -102,7 +102,6 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* CTA Button */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -124,7 +123,6 @@ const Navbar = () => {
             </Link>
           </motion.div>
 
-          {/* Mobile menu button */}
           <div className="md:hidden">
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -149,7 +147,6 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Subtle gradient overlay for depth */}
       <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
     </motion.nav>
   );

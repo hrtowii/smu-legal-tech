@@ -1,14 +1,18 @@
+// app/(marketing)/demo/page.tsx
 "use client";
 
-import { useState } from "react";
-import {
-  FinancialForm,
+import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
+import type {
   ApplicantIncome,
   HouseholdIncome,
   OtherIncomeSource,
+  EnhancedFinancialForm,
+  ValidationResult,
 } from "../../api/data";
+import { ValidationModals } from "../../../components/validation-modals";
 
-interface ExtractedFinancialForm extends FinancialForm {
+interface ExtractedFinancialForm extends EnhancedFinancialForm {
   flags: string[];
   confidence: number;
 }
@@ -23,135 +27,353 @@ export default function Demo() {
     "upload" | "processing" | "review" | "export"
   >("upload");
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
+  // validation / confidence helpers
+  const [fieldValidations, setFieldValidations] = useState<
+    Record<string, ValidationResult>
+  >({});
+  const [pendingConfirmation, setPendingConfirmation] = useState<{
+    field: string;
+    value: string;
+    confidence: number;
+    onConfirm: () => void;
+    onEdit: (newValue: string) => void;
+  } | null>(null);
+  const [pendingValidation, setPendingValidation] = useState<{
+    field: string;
+    value: string;
+    validationResult: ValidationResult;
+    onAccept: () => void;
+    onEdit: (newValue: string) => void;
+  } | null>(null);
 
-      // Create image preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(selectedFile);
+  const setFieldValue = (path: string, value: string | number) => {
+    if (!extractedData) return;
+    const parts = path.split(".");
+    const newData = { ...extractedData };
+    let cur: Record<string, unknown> = newData as Record<string, unknown>;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const p = parts[i];
+      cur = Array.isArray(cur) ? cur[Number(p)] : cur[p];
+      if (!cur) return;
     }
+    const last = parts[parts.length - 1];
+    if (Array.isArray(cur)) cur[Number(last)] = value;
+    else cur[last] = value;
+    setExtractedData(newData);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+    setFile(selected);
+    const r = new FileReader();
+    r.onload = (ev) => setImagePreview(ev.target?.result as string);
+    r.readAsDataURL(selected);
   };
 
   const handleExtract = async () => {
     if (!file) return;
-
     setIsProcessing(true);
     setCurrentStep("processing");
-
     const formData = new FormData();
     formData.append("file", file);
 
     try {
-      const response = await fetch("/api/extract", {
+      const extractRes = await fetch("/api/extract", {
         method: "POST",
         body: formData,
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Received data:", data); // Debug log
-        setExtractedData(data);
-        setCurrentStep("review");
-      } else {
-        const errorData = await response.json();
-        console.error("Extraction failed:", errorData);
-        alert(`Extraction failed: ${errorData.error || "Unknown error"}`);
+      if (!extractRes.ok) {
+        const err = await extractRes.json();
+        alert(`Extraction failed: ${err.error ?? "unknown error"}`);
         setCurrentStep("upload");
+        return;
       }
-    } catch (error) {
-      console.error("Error:", error);
+      let data = await extractRes.json();
+      console.log("Raw:", data);
+
+      try {
+        const mapRes = await fetch("/api/smart-mapping", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ extractedData: data }),
+        });
+        if (mapRes.ok) {
+          const { enhancedData } = await mapRes.json();
+          data = { ...data, ...enhancedData };
+          console.log("Smart‑mapped:", data);
+        }
+      } catch (e) {
+        console.warn("smart‑mapping error – continuing with raw data", e);
+      }
+
+      console.log("Checking fieldConfidence:", data.fieldConfidence);
+      if (data.fieldConfidence) {
+        Object.entries(data.fieldConfidence).forEach(
+          ([field, rawInfo]: [string, unknown]) => {
+            const conf =
+              typeof rawInfo === "object" && rawInfo !== null
+                ? (rawInfo as { confidence?: number }).confidence
+                : rawInfo;
+            console.log(`Field ${field} confidence:`, conf);
+            if (conf !== undefined && typeof conf === "number" && conf < 0.7) {
+              console.log(`Triggering confirmation modal for ${field}`);
+              setPendingConfirmation({
+                field,
+                value: (rawInfo as { value?: string })?.value ?? "",
+                confidence: conf,
+                onConfirm: () => setPendingConfirmation(null),
+                onEdit: (newVal) => {
+                  setFieldValue(field, newVal);
+                  setPendingConfirmation(null);
+                },
+              });
+            }
+          },
+        );
+      }
+
+      setExtractedData(data);
+      setCurrentStep("review");
+    } catch (e) {
+      console.error(e);
       setCurrentStep("upload");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleFinancialSituationChange = (value: string) => {
-    if (extractedData) {
-      setExtractedData({
-        ...extractedData,
-        financialSituationNote: value,
-      });
-    }
+  const getFieldConfidence = (
+    fieldPath: string,
+    data: ExtractedFinancialForm | null,
+  ): number | null => {
+    const info = data?.fieldConfidence?.[fieldPath];
+    if (!info) return null;
+    return typeof info === "object" && info !== null
+      ? ((info as { confidence?: number }).confidence ?? null)
+      : typeof info === "number"
+        ? info
+        : null;
+  };
+  const getValidationStatus = (
+    fieldPath: string,
+    validations: Record<string, ValidationResult>,
+  ): ValidationResult | null => validations[fieldPath] ?? null;
+
+  const debounce = <T extends unknown[]>(
+    fn: (...args: T) => void,
+    delay = 1000,
+  ) => {
+    let timer: NodeJS.Timeout;
+    return (...args: T) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    };
   };
 
-  const handleApplicantIncomeChange = (
-    index: number,
+  const standardizeField = async (
+    fieldName: string,
+    value: string,
+  ): Promise<string> => {
+    if (!value.trim()) return value;
+    try {
+      const res = await fetch("/api/standardize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: value, fieldType: fieldName }),
+      });
+      if (res.ok) {
+        const { standardized } = await res.json();
+        return standardized;
+      }
+    } catch (e) {
+      console.warn("standardization error", e);
+    }
+    return value;
+  };
+
+  // ----- debounced validation -------------------------------------------------
+  const scheduleValidate = useCallback(
+    debounce<[string, string]>((fieldPath: string, value: string) => {
+      fetch("/api/validate-field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fieldName: fieldPath, fieldValue: value }),
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            const validation = await res.json();
+            console.log(`Validation result for ${fieldPath}:`, validation);
+            setFieldValidations((v) => ({
+              ...v,
+              [fieldPath]: validation,
+            }));
+
+            // Trigger validation modal if field is invalid
+            if (!validation.isValid) {
+              console.log(`Triggering validation modal for ${fieldPath}`);
+              setPendingValidation({
+                field: fieldPath,
+                value: value,
+                validationResult: validation,
+                onAccept: () => setPendingValidation(null),
+                onEdit: (newValue: string) => {
+                  // Update the field value here
+                  setFieldValue(fieldPath, newValue);
+                  setPendingValidation(null);
+                },
+              });
+            }
+          }
+        })
+        .catch((e) => {
+          console.warn("validation error", e);
+        });
+    }, 3000),
+    [],
+  );
+
+  const handleFinancialSituationChange = async (value: string) => {
+    if (!extractedData) return;
+    const std = await standardizeField("financialSituationNote", value);
+    setExtractedData((d) => {
+      if (!d) return null;
+      return {
+        ...d,
+        financialSituationNote: std,
+      };
+    });
+    // scheduleValidate("financialSituationNote", std);
+  };
+
+  const handleApplicantIncomeChange = async (
+    idx: number,
     field: keyof ApplicantIncome,
-    value: string | number,
+    raw: string | number,
   ) => {
-    if (extractedData) {
-      const newApplicantIncome = [...(extractedData.applicantIncome || [])];
-      newApplicantIncome[index] = {
-        ...newApplicantIncome[index],
-        [field]: value,
-      };
-      setExtractedData({
-        ...extractedData,
-        applicantIncome: newApplicantIncome,
+    const path = `applicantIncome.${idx}.${field}`;
+    let final = raw;
+    if (typeof raw === "string" && field !== "grossMonthlyIncomeSGD") {
+      final = await standardizeField(path, raw);
+    }
+    const newArr = [...(extractedData?.applicantIncome ?? [])];
+    newArr[idx] = { ...newArr[idx], [field]: final };
+    setExtractedData((d) => {
+      if (!d) return null;
+      return { ...d, applicantIncome: newArr };
+    });
+    // scheduleValidate(path, String(final));
+
+    // low‑confidence detection → Confirmation modal
+    const conf = getFieldConfidence(path, extractedData);
+    console.log(`Applicant income field ${path} confidence:`, conf);
+    if (conf !== null && conf < 0.7) {
+      console.log(`Triggering confirmation modal for applicant income ${path}`);
+      setPendingConfirmation({
+        field: path,
+        value: String(final),
+        confidence: conf,
+        onConfirm: () => setPendingConfirmation(null),
+        onEdit: (nv) => {
+          setFieldValue(path, nv);
+          setPendingConfirmation(null);
+        },
       });
     }
   };
 
-  const handleHouseholdIncomeChange = (
-    index: number,
+  const handleHouseholdIncomeChange = async (
+    idx: number,
     field: keyof HouseholdIncome,
-    value: string | number,
+    raw: string | number,
   ) => {
-    if (extractedData) {
-      const newHouseholdIncome = [...(extractedData.householdIncome || [])];
-      newHouseholdIncome[index] = {
-        ...newHouseholdIncome[index],
-        [field]: value,
-      };
-      setExtractedData({
-        ...extractedData,
-        householdIncome: newHouseholdIncome,
+    const path = `householdIncome.${idx}.${field}`;
+    let final = raw;
+    if (typeof raw === "string" && field !== "grossMonthlyIncomeSGD") {
+      final = await standardizeField(path, raw);
+    }
+    const newArr = [...(extractedData?.householdIncome ?? [])];
+    newArr[idx] = { ...newArr[idx], [field]: final };
+    setExtractedData((d) => {
+      if (!d) return null;
+      return { ...d, householdIncome: newArr };
+    });
+    // scheduleValidate(path, String(final));
+
+    const conf = getFieldConfidence(path, extractedData);
+    console.log(`Household income field ${path} confidence:`, conf);
+    if (conf !== null && conf < 0.7) {
+      console.log(`Triggering confirmation modal for household income ${path}`);
+      setPendingConfirmation({
+        field: path,
+        value: String(final),
+        confidence: conf,
+        onConfirm: () => setPendingConfirmation(null),
+        onEdit: (nv) => {
+          setFieldValue(path, nv);
+          setPendingConfirmation(null);
+        },
       });
     }
   };
 
-  const handleOtherIncomeChange = (
-    index: number,
+  const handleOtherIncomeChange = async (
+    idx: number,
     field: keyof OtherIncomeSource,
-    value: string | number,
+    raw: string | number,
   ) => {
-    if (extractedData) {
-      const newOtherIncome = [...(extractedData.otherIncomeSources || [])];
-      newOtherIncome[index] = {
-        ...newOtherIncome[index],
-        [field]: value,
+    const path = `otherIncomeSources.${idx}.${field}`;
+    let final = raw;
+    if (typeof raw === "string" && field !== "amountSGD") {
+      final = await standardizeField(path, raw);
+    }
+    const newArr = [...(extractedData?.otherIncomeSources ?? [])];
+    newArr[idx] = { ...newArr[idx], [field]: final };
+    setExtractedData((d) => {
+      if (!d) return null;
+      return {
+        ...d,
+        otherIncomeSources: newArr,
       };
-      setExtractedData({
-        ...extractedData,
-        otherIncomeSources: newOtherIncome,
+    });
+    // scheduleValidate(path, String(final));
+
+    const conf = getFieldConfidence(path, extractedData);
+    console.log(`Other income field ${path} confidence:`, conf);
+    if (conf !== null && conf < 0.7) {
+      console.log(`Triggering confirmation modal for other income ${path}`);
+      setPendingConfirmation({
+        field: path,
+        value: String(final),
+        confidence: conf,
+        onConfirm: () => setPendingConfirmation(null),
+        onEdit: (nv) => {
+          setFieldValue(path, nv);
+          setPendingConfirmation(null);
+        },
       });
     }
   };
 
   const addApplicantIncomeRow = () => {
-    if (extractedData) {
-      setExtractedData({
-        ...extractedData,
+    setExtractedData((d) => {
+      if (!d) return null;
+      return {
+        ...d,
         applicantIncome: [
-          ...(extractedData.applicantIncome || []),
+          ...(d.applicantIncome ?? []),
           { occupation: "", grossMonthlyIncomeSGD: 0, periodOfEmployment: "" },
         ],
-      });
-    }
+      };
+    });
   };
-
   const addHouseholdIncomeRow = () => {
-    if (extractedData) {
-      setExtractedData({
-        ...extractedData,
+    setExtractedData((d) => {
+      if (!d) return null;
+      return {
+        ...d,
         householdIncome: [
-          ...(extractedData.householdIncome || []),
+          ...(d.householdIncome ?? []),
           {
             name: "",
             relationshipToApplicant: "",
@@ -159,137 +381,128 @@ export default function Demo() {
             grossMonthlyIncomeSGD: 0,
           },
         ],
-      });
-    }
+      };
+    });
   };
-
   const addOtherIncomeRow = () => {
-    if (extractedData) {
-      setExtractedData({
-        ...extractedData,
+    setExtractedData((d) => {
+      if (!d) return null;
+      return {
+        ...d,
         otherIncomeSources: [
-          ...(extractedData.otherIncomeSources || []),
+          ...(d.otherIncomeSources ?? []),
           { description: "", amountSGD: 0 },
         ],
-      });
-    }
+      };
+    });
   };
 
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
     if (!extractedData) return;
-
-    const csvData = [
+    // optional enforcement check – keep as‑is
+    try {
+      const res = await fetch("/api/enforce-fields", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ extractedData }),
+      });
+      const payload = await res.json();
+      if (res.ok && !payload.canProceed) {
+        alert(`Cannot export: ${payload.reasons.join(", ")}`);
+        return;
+      }
+      if (payload.warnings?.length) {
+        const go = confirm(
+          `Warning: ${payload.warnings.join(", ")}\nProceed with export?`,
+        );
+        if (!go) return;
+      }
+    } catch (e) {
+      console.warn("enforcement check failed", e);
+    }
+    const rows: string[][] = [
       ["Section", "Field", "Value"],
       [
         "Financial Situation",
         "Note",
-        extractedData.financialSituationNote || "",
+        extractedData.financialSituationNote ?? "",
       ],
     ];
-
-    // Add applicant income data
-    if (extractedData.applicantIncome) {
-      extractedData.applicantIncome.forEach((income, index) => {
-        csvData.push([
-          `Applicant Income ${index + 1}`,
-          "Occupation",
-          income.occupation || "",
-        ]);
-        csvData.push([
-          `Applicant Income ${index + 1}`,
-          "Monthly Income (SGD)",
-          income.grossMonthlyIncomeSGD?.toString() || "0",
-        ]);
-        csvData.push([
-          `Applicant Income ${index + 1}`,
-          "Employment Period",
-          income.periodOfEmployment || "",
-        ]);
-      });
-    }
-
-    // Add household income data
-    if (extractedData.householdIncome) {
-      extractedData.householdIncome.forEach((income, index) => {
-        csvData.push([
-          `Household Income ${index + 1}`,
-          "Name",
-          income.name || "",
-        ]);
-        csvData.push([
-          `Household Income ${index + 1}`,
-          "Relationship",
-          income.relationshipToApplicant || "",
-        ]);
-        csvData.push([
-          `Household Income ${index + 1}`,
-          "Occupation",
-          income.occupation || "",
-        ]);
-        csvData.push([
-          `Household Income ${index + 1}`,
-          "Monthly Income (SGD)",
-          income.grossMonthlyIncomeSGD?.toString() || "0",
-        ]);
-      });
-    }
-
-    // Add other income sources
-    if (extractedData.otherIncomeSources) {
-      extractedData.otherIncomeSources.forEach((income, index) => {
-        csvData.push([
-          `Other Income ${index + 1}`,
-          "Description",
-          income.description || "",
-        ]);
-        csvData.push([
-          `Other Income ${index + 1}`,
-          "Amount (SGD)",
-          income.amountSGD?.toString() || "0",
-        ]);
-      });
-    }
-
-    csvData.push(["Metadata", "Flags", extractedData.flags.join("; ")]);
-    csvData.push([
+    extractedData.applicantIncome?.forEach((inc, i) => {
+      rows.push([
+        `Applicant Income ${i + 1}`,
+        "Occupation",
+        inc.occupation ?? "",
+      ]);
+      rows.push([
+        `Applicant Income ${i + 1}`,
+        "Monthly Income (SGD)",
+        (inc.grossMonthlyIncomeSGD ?? 0).toString(),
+      ]);
+      rows.push([
+        `Applicant Income ${i + 1}`,
+        "Employment Period",
+        inc.periodOfEmployment ?? "",
+      ]);
+    });
+    extractedData.householdIncome?.forEach((inc, i) => {
+      rows.push([`Household Income ${i + 1}`, "Name", inc.name ?? ""]);
+      rows.push([
+        `Household Income ${i + 1}`,
+        "Relationship",
+        inc.relationshipToApplicant ?? "",
+      ]);
+      rows.push([
+        `Household Income ${i + 1}`,
+        "Occupation",
+        inc.occupation ?? "",
+      ]);
+      rows.push([
+        `Household Income ${i + 1}`,
+        "Monthly Income (SGD)",
+        (inc.grossMonthlyIncomeSGD ?? 0).toString(),
+      ]);
+    });
+    extractedData.otherIncomeSources?.forEach((inc, i) => {
+      rows.push([
+        `Other Income ${i + 1}`,
+        "Description",
+        inc.description ?? "",
+      ]);
+      rows.push([
+        `Other Income ${i + 1}`,
+        "Amount (SGD)",
+        (inc.amountSGD ?? 0).toString(),
+      ]);
+    });
+    rows.push(["Metadata", "Flags", extractedData.flags.join("; ")]);
+    rows.push([
       "Metadata",
       "Confidence Score",
       extractedData.confidence.toString(),
     ]);
-
-    const csvContent = csvData
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `financial_form_extraction_${new Date().getTime()}.csv`;
+    a.download = `financial_form_${Date.now()}.csv`;
     a.click();
-    window.URL.revokeObjectURL(url);
+    URL.revokeObjectURL(url);
   };
 
   const saveToDatabase = async () => {
     if (!extractedData) return;
-
-    try {
-      const response = await fetch("/api/save", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(extractedData),
-      });
-
-      if (response.ok) {
-        alert("Financial form saved successfully!");
-        setCurrentStep("export");
-      } else {
-        alert("Failed to save financial form");
-      }
-    } catch (error) {
-      console.error("Error saving data:", error);
-      alert("Error saving financial form");
+    const res = await fetch("/api/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(extractedData),
+    });
+    if (res.ok) {
+      alert("Financial form saved successfully!");
+      setCurrentStep("export");
+    } else {
+      alert("Failed to save the form.");
     }
   };
 
@@ -298,7 +511,132 @@ export default function Demo() {
     setImagePreview(null);
     setExtractedData(null);
     setCurrentStep("upload");
+    setFieldValidations({});
+    setPendingConfirmation(null);
+    setPendingValidation(null);
   };
+
+  useEffect(() => {
+    if (!extractedData) return;
+
+    const runInitialValidations = async () => {
+      // Financial note
+      if (extractedData.financialSituationNote) {
+        scheduleValidate(
+          "financialSituationNote",
+          extractedData.financialSituationNote,
+        );
+      }
+
+      // Applicant income rows
+      extractedData.applicantIncome?.forEach((inc, i) => {
+        const base = `applicantIncome.${i}`;
+        if (inc.occupation)
+          scheduleValidate(`${base}.occupation`, inc.occupation);
+        if (inc.grossMonthlyIncomeSGD !== undefined)
+          scheduleValidate(
+            `${base}.grossMonthlyIncomeSGD`,
+            String(inc.grossMonthlyIncomeSGD),
+          );
+        if (inc.periodOfEmployment)
+          scheduleValidate(
+            `${base}.periodOfEmployment`,
+            inc.periodOfEmployment,
+          );
+      });
+
+      // Household income rows
+      extractedData.householdIncome?.forEach((inc, i) => {
+        const base = `householdIncome.${i}`;
+        if (inc.name) scheduleValidate(`${base}.name`, inc.name);
+        if (inc.relationshipToApplicant)
+          scheduleValidate(
+            `${base}.relationshipToApplicant`,
+            inc.relationshipToApplicant,
+          );
+        if (inc.occupation)
+          scheduleValidate(`${base}.occupation`, inc.occupation);
+        if (inc.grossMonthlyIncomeSGD !== undefined)
+          scheduleValidate(
+            `${base}.grossMonthlyIncomeSGD`,
+            String(inc.grossMonthlyIncomeSGD),
+          );
+      });
+
+      // Other income rows
+      extractedData.otherIncomeSources?.forEach((inc, i) => {
+        const base = `otherIncomeSources.${i}`;
+        if (inc.description)
+          scheduleValidate(`${base}.description`, inc.description);
+        if (inc.amountSGD !== undefined)
+          scheduleValidate(`${base}.amountSGD`, String(inc.amountSGD));
+      });
+    };
+    runInitialValidations();
+  }, [extractedData, scheduleValidate]);
+
+  type FieldWrapperProps = {
+    path: string; // dotted path, e.g. "applicantIncome.0.occupation"
+    label: string;
+    children: React.ReactNode;
+    extra?: React.ReactNode;
+  };
+
+  function FieldWrapper({ path, label, children, extra }: FieldWrapperProps) {
+    const confidence = getFieldConfidence(path, extractedData);
+    const validation = getValidationStatus(path, fieldValidations);
+    const lowConfidence = confidence !== null && confidence < 0.6;
+    const hasError = (validation && !validation.isValid) || lowConfidence;
+
+    // badge colour
+    const badgeBg =
+      confidence !== null
+        ? confidence > 0.8
+          ? "bg-green-100 text-green-800"
+          : confidence > 0.6
+            ? "bg-yellow-100 text-yellow-800"
+            : "bg-red-100 text-red-800"
+        : "bg-gray-100 text-gray-800";
+
+    return (
+      <div className="mb‑4">
+        <div className="text-sm font-medium text-gray-700 mb-1 flex items-center">
+          <span>{label}</span>
+          {confidence !== null && (
+            <span
+              className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${badgeBg}`}
+            >
+              {Math.round(confidence * 100)}%
+            </span>
+          )}
+          {extra}
+        </div>
+
+        <div className={`relative ${hasError ? "ring-2 ring-red-500" : ""}`}>
+          {children}
+
+          {hasError && (
+            <div className="absolute left-0 top-full mt-1 w-max max-w-xs bg-red-600 text-white text-xs rounded py-1 px-2 z-10">
+              {lowConfidence && <p>Low confidence</p>}
+              {validation && !validation.isValid && (
+                <div className="mt-1 space-y-1">
+                  {validation.flags?.map((flag) => (
+                    <p key={`validation-flag-${flag}`}>⚠️ {flag}</p>
+                  ))}
+                  {validation.suggestions?.length > 0 && (
+                    <p className="mt-1 text-blue-200">
+                      Suggestion: {validation.suggestions.join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="absolute left-2 -top-1 w-0 h-0 border-8 border-transparent border-b-red-600" />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -308,35 +646,34 @@ export default function Demo() {
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
           Upload a handwritten financial form and watch our AI extract
-          structured income data in real-time
+          structured income data in real‑time.
         </p>
       </div>
 
-      {/* Progress Steps */}
       <div className="flex justify-center mb-12">
         <div className="flex items-center space-x-4">
-          {["upload", "processing", "review", "export"].map((step, index) => (
+          {["upload", "processing", "review", "export"].map((step, i) => (
             <div key={step} className="flex items-center">
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                   currentStep === step
                     ? "bg-blue-600 text-white"
-                    : ["upload", "processing", "review", "export"].indexOf(
+                    : i <
+                        ["upload", "processing", "review", "export"].indexOf(
                           currentStep,
-                        ) > index
+                        )
                       ? "bg-green-500 text-white"
                       : "bg-gray-200 text-gray-600"
                 }`}
               >
-                {index + 1}
+                {i + 1}
               </div>
-              {index < 3 && <div className="w-16 h-1 bg-gray-200 mx-2"></div>}
+              {i < 3 && <div className="w-16 h-1 bg-gray-200 mx-2"></div>}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Upload Step */}
       {currentStep === "upload" && (
         <div className="bg-white p-8 rounded-lg shadow-lg">
           <h2 className="text-2xl font-semibold mb-6">
@@ -359,9 +696,10 @@ export default function Demo() {
                     stroke="currentColor"
                     fill="none"
                     viewBox="0 0 48 48"
+                    aria-hidden="true"
                   >
                     <path
-                      d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                      d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
                       strokeWidth={2}
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -374,28 +712,28 @@ export default function Demo() {
                     or drag and drop
                   </p>
                   <p className="text-sm text-gray-500">
-                    PDF, PNG, JPG up to 10MB
+                    PDF, PNG, JPG up to 10 MB
                   </p>
                 </div>
               </label>
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Image Preview */}
               {imagePreview && (
                 <div className="border rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3">Image Preview:</h3>
+                  <h3 className="text-lg font-semibold mb-3">Image preview</h3>
                   <div className="flex justify-center">
-                    <img
+                    <Image
                       src={imagePreview}
                       alt="Uploaded financial form"
+                      width={800}
+                      height={600}
                       className="max-w-full max-h-96 object-contain border rounded shadow"
                     />
                   </div>
                 </div>
               )}
 
-              {/* File Info and Actions */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
@@ -403,11 +741,12 @@ export default function Demo() {
                       {file.name}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
                   <div className="flex gap-3">
                     <button
+                      type="button"
                       onClick={() => {
                         setFile(null);
                         setImagePreview(null);
@@ -417,13 +756,12 @@ export default function Demo() {
                       Remove
                     </button>
                     <button
+                      type="button"
                       onClick={handleExtract}
                       disabled={isProcessing}
                       className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg font-semibold"
                     >
-                      {isProcessing
-                        ? "Processing..."
-                        : "Extract Financial Data"}
+                      {isProcessing ? "Processing…" : "Extract Financial Data"}
                     </button>
                   </div>
                 </div>
@@ -433,7 +771,6 @@ export default function Demo() {
         </div>
       )}
 
-      {/* Processing Step */}
       {currentStep === "processing" && (
         <div className="bg-white p-8 rounded-lg shadow-lg text-center">
           <h2 className="text-2xl font-semibold mb-6">
@@ -441,17 +778,16 @@ export default function Demo() {
           </h2>
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
           <p className="text-gray-600 mt-4">
-            Our AI is analyzing the financial form and extracting income data...
+            Our AI is analysing the form and extracting income data…
           </p>
         </div>
       )}
 
-      {/* Review Step */}
       {currentStep === "review" && extractedData && (
         <div className="bg-white p-8 rounded-lg shadow-lg">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-semibold">
-              3. Review & Edit Financial Data
+              3. Review &amp; Edit Financial Data
             </h2>
             <div className="flex items-center">
               <span className="text-sm text-gray-600 mr-2">Confidence:</span>
@@ -471,274 +807,266 @@ export default function Demo() {
 
           {extractedData.flags.length > 0 && (
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-              <h3 className="text-sm font-medium text-yellow-800">
-                Flagged for Review:
+              <h3 className="text-sm font-medium text-yellow-800 mb-2">
+                Flagged for Review
               </h3>
-              <ul className="text-sm text-yellow-700 mt-1">
-                {extractedData.flags.map((flag, index) => (
-                  <li key={index}>• {flag}</li>
+              <ul className="list-disc list-inside text-sm text-yellow-700">
+                {extractedData.flags.map((f) => (
+                  <li key={`extracted-flag-${f}`}>{f}</li>
                 ))}
               </ul>
             </div>
           )}
 
           <div className="space-y-8">
-            {/* Debug Info */}
-            {process.env.NODE_ENV === "development" && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-                <h4 className="text-sm font-medium text-yellow-800 mb-2">
-                  Debug Info:
-                </h4>
-                <pre className="text-xs text-yellow-700 overflow-auto">
-                  {JSON.stringify(extractedData, null, 2)}
-                </pre>
-              </div>
-            )}
-
-            {/* Financial Situation Note */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Financial Situation Note
-              </label>
+            <FieldWrapper
+              path="financialSituationNote"
+              label="Financial Situation Note"
+            >
               <textarea
-                value={extractedData.financialSituationNote || ""}
-                onChange={(e) => handleFinancialSituationChange(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 rows={3}
-                placeholder="Any additional notes about financial situation..."
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Any additional notes about the financial situation…"
+                value={extractedData.financialSituationNote ?? ""}
+                onChange={(e) => handleFinancialSituationChange(e.target.value)}
               />
-            </div>
+            </FieldWrapper>
 
-            {/* Applicant Income */}
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Applicant Income</h3>
                 <button
+                  type="button"
                   onClick={addApplicantIncomeRow}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
                 >
                   Add Row
                 </button>
               </div>
+
               {(!extractedData.applicantIncome ||
                 extractedData.applicantIncome.length === 0) && (
-                <div className="text-gray-500 text-sm mb-4">
-                  No applicant income data extracted. Click "Add Row" to
+                <p className="text-gray-500 text-sm mb-4">
+                  No applicant‑income data extracted. Click “Add Row” to
                   manually add entries.
-                </div>
+                </p>
               )}
-              {extractedData.applicantIncome?.map((income, index) => (
+
+              {extractedData.applicantIncome?.map((inc, i) => (
                 <div
-                  key={index}
+                  key={`applicant-income-${i}-${inc.occupation || "unknown"}`}
                   className="grid md:grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded"
                 >
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Occupation
-                    </label>
+                  <FieldWrapper
+                    path={`applicantIncome.${i}.occupation`}
+                    label="Occupation"
+                  >
                     <input
                       type="text"
-                      value={income.occupation || ""}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      value={inc.occupation ?? ""}
                       onChange={(e) =>
                         handleApplicantIncomeChange(
-                          index,
+                          i,
                           "occupation",
                           e.target.value,
                         )
                       }
-                      className="w-full p-2 border border-gray-300 rounded-md"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Monthly Income (SGD)
-                    </label>
+                  </FieldWrapper>
+
+                  <FieldWrapper
+                    path={`applicantIncome.${i}.grossMonthlyIncomeSGD`}
+                    label="Monthly Income (SGD)"
+                  >
                     <input
                       type="number"
-                      value={income.grossMonthlyIncomeSGD || 0}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      value={inc.grossMonthlyIncomeSGD ?? 0}
                       onChange={(e) =>
                         handleApplicantIncomeChange(
-                          index,
+                          i,
                           "grossMonthlyIncomeSGD",
-                          parseFloat(e.target.value),
+                          parseFloat(e.target.value) || 0,
                         )
                       }
-                      className="w-full p-2 border border-gray-300 rounded-md"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Employment Period
-                    </label>
+                  </FieldWrapper>
+
+                  <FieldWrapper
+                    path={`applicantIncome.${i}.periodOfEmployment`}
+                    label="Employment Period"
+                  >
                     <input
                       type="text"
-                      value={income.periodOfEmployment || ""}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      value={inc.periodOfEmployment ?? ""}
                       onChange={(e) =>
                         handleApplicantIncomeChange(
-                          index,
+                          i,
                           "periodOfEmployment",
                           e.target.value,
                         )
                       }
-                      className="w-full p-2 border border-gray-300 rounded-md"
                     />
-                  </div>
+                  </FieldWrapper>
                 </div>
               ))}
             </div>
 
-            {/* Household Income */}
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Household Income</h3>
                 <button
+                  type="button"
                   onClick={addHouseholdIncomeRow}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
                 >
                   Add Row
                 </button>
               </div>
+
               {(!extractedData.householdIncome ||
                 extractedData.householdIncome.length === 0) && (
-                <div className="text-gray-500 text-sm mb-4">
-                  No household income data extracted. Click "Add Row" to
+                <p className="text-gray-500 text-sm mb-4">
+                  No household‑income data extracted. Click “Add Row” to
                   manually add entries.
-                </div>
+                </p>
               )}
-              {extractedData.householdIncome?.map((income, index) => (
+
+              {extractedData.householdIncome?.map((inc, i) => (
                 <div
-                  key={index}
+                  key={`household-income-${i}-${inc.name || "unknown"}`}
                   className="grid md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded"
                 >
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Name
-                    </label>
+                  <FieldWrapper path={`householdIncome.${i}.name`} label="Name">
                     <input
                       type="text"
-                      value={income.name || ""}
-                      onChange={(e) =>
-                        handleHouseholdIncomeChange(
-                          index,
-                          "name",
-                          e.target.value,
-                        )
-                      }
                       className="w-full p-2 border border-gray-300 rounded-md"
+                      value={inc.name ?? ""}
+                      onChange={(e) =>
+                        handleHouseholdIncomeChange(i, "name", e.target.value)
+                      }
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Relationship
-                    </label>
+                  </FieldWrapper>
+
+                  <FieldWrapper
+                    path={`householdIncome.${i}.relationshipToApplicant`}
+                    label="Relationship"
+                  >
                     <input
                       type="text"
-                      value={income.relationshipToApplicant || ""}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      value={inc.relationshipToApplicant ?? ""}
                       onChange={(e) =>
                         handleHouseholdIncomeChange(
-                          index,
+                          i,
                           "relationshipToApplicant",
                           e.target.value,
                         )
                       }
-                      className="w-full p-2 border border-gray-300 rounded-md"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Occupation
-                    </label>
+                  </FieldWrapper>
+
+                  <FieldWrapper
+                    path={`householdIncome.${i}.occupation`}
+                    label="Occupation"
+                  >
                     <input
                       type="text"
-                      value={income.occupation || ""}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      value={inc.occupation ?? ""}
                       onChange={(e) =>
                         handleHouseholdIncomeChange(
-                          index,
+                          i,
                           "occupation",
                           e.target.value,
                         )
                       }
-                      className="w-full p-2 border border-gray-300 rounded-md"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Monthly Income (SGD)
-                    </label>
+                  </FieldWrapper>
+
+                  <FieldWrapper
+                    path={`householdIncome.${i}.grossMonthlyIncomeSGD`}
+                    label="Monthly Income (SGD)"
+                  >
                     <input
                       type="number"
-                      value={income.grossMonthlyIncomeSGD || 0}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      value={inc.grossMonthlyIncomeSGD ?? 0}
                       onChange={(e) =>
                         handleHouseholdIncomeChange(
-                          index,
+                          i,
                           "grossMonthlyIncomeSGD",
-                          parseFloat(e.target.value),
+                          parseFloat(e.target.value) || 0,
                         )
                       }
-                      className="w-full p-2 border border-gray-300 rounded-md"
                     />
-                  </div>
+                  </FieldWrapper>
                 </div>
               ))}
             </div>
 
-            {/* Other Income Sources */}
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Other Income Sources</h3>
                 <button
+                  type="button"
                   onClick={addOtherIncomeRow}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
                 >
                   Add Row
                 </button>
               </div>
+
               {(!extractedData.otherIncomeSources ||
                 extractedData.otherIncomeSources.length === 0) && (
-                <div className="text-gray-500 text-sm mb-4">
-                  No other income sources extracted. Click "Add Row" to manually
+                <p className="text-gray-500 text-sm mb-4">
+                  No other‑income data extracted. Click “Add Row” to manually
                   add entries.
-                </div>
+                </p>
               )}
-              {extractedData.otherIncomeSources?.map((income, index) => (
+
+              {extractedData.otherIncomeSources?.map((inc, i) => (
                 <div
-                  key={index}
+                  key={`other-income-${i}-${inc.description || "unknown"}`}
                   className="grid md:grid-cols-2 gap-4 mb-4 p-4 bg-gray-50 rounded"
                 >
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
+                  <FieldWrapper
+                    path={`otherIncomeSources.${i}.description`}
+                    label="Description"
+                  >
                     <input
                       type="text"
-                      value={income.description || ""}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      value={inc.description ?? ""}
                       onChange={(e) =>
                         handleOtherIncomeChange(
-                          index,
+                          i,
                           "description",
                           e.target.value,
                         )
                       }
-                      className="w-full p-2 border border-gray-300 rounded-md"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Amount (SGD)
-                    </label>
+                  </FieldWrapper>
+
+                  <FieldWrapper
+                    path={`otherIncomeSources.${i}.amountSGD`}
+                    label="Amount (SGD)"
+                  >
                     <input
                       type="number"
-                      value={income.amountSGD || 0}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      value={inc.amountSGD ?? 0}
                       onChange={(e) =>
                         handleOtherIncomeChange(
-                          index,
+                          i,
                           "amountSGD",
-                          parseFloat(e.target.value),
+                          parseFloat(e.target.value) || 0,
                         )
                       }
-                      className="w-full p-2 border border-gray-300 rounded-md"
                     />
-                  </div>
+                  </FieldWrapper>
                 </div>
               ))}
             </div>
@@ -746,22 +1074,133 @@ export default function Demo() {
 
           <div className="flex gap-4 mt-8">
             <button
+              type="button"
               onClick={() => setCurrentStep("export")}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold"
             >
               Continue to Export
             </button>
             <button
+              type="button"
               onClick={resetDemo}
               className="border border-gray-300 hover:border-gray-400 text-gray-700 px-6 py-3 rounded-lg font-semibold"
             >
               Start Over
             </button>
           </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-8">
+            <h4 className="text-sm font-semibold text-blue-800 mb-3">
+              Test: Create Low Confidence Data
+            </h4>
+            <button
+              type="button"
+              onClick={() => {
+                console.log("Creating test data with low confidence");
+                const testData: ExtractedFinancialForm = {
+                  flags: ["test_flag"],
+                  confidence: 0.4,
+                  status: "pending_review",
+                  requiredFields: [],
+                  missingMandatoryFields: [],
+                  financialSituationNote: "Test situation",
+                  applicantIncome: [
+                    {
+                      occupation: "Test Occupation",
+                      grossMonthlyIncomeSGD: 1000,
+                      periodOfEmployment: "6 months",
+                    },
+                  ],
+                  fieldConfidence: {
+                    financialSituationNote: {
+                      value: "Test situation",
+                      confidence: 0.4,
+                      source: "ocr" as const,
+                      flags: ["unclear_handwriting"],
+                      originalText: "Test situation",
+                    },
+                    "applicantIncome.0.occupation": {
+                      value: "Test Occupation",
+                      confidence: 0.3,
+                      source: "ocr" as const,
+                      flags: ["low_confidence"],
+                      originalText: "Test Occupation",
+                    },
+                  },
+                };
+                setExtractedData(testData);
+                setCurrentStep("review");
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
+            >
+              Load Test Data with Low Confidence
+            </button>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-8">
+            <h4 className="text-sm font-semibold text-yellow-800 mb-3">
+              Debug: Test Modals
+            </h4>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  console.log("Triggering test confirmation modal");
+                  setPendingConfirmation({
+                    field: "test.field",
+                    value: "Test Value",
+                    confidence: 0.5,
+                    onConfirm: () => {
+                      console.log("Confirmed");
+                      setPendingConfirmation(null);
+                    },
+                    onEdit: (newValue: string) => {
+                      console.log("Edited with value:", newValue);
+                      setPendingConfirmation(null);
+                    },
+                  });
+                }}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm"
+              >
+                Test Confirmation Modal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  console.log("Triggering test validation modal");
+                  setPendingValidation({
+                    field: "test.validation.field",
+                    value: "Invalid Value",
+                    validationResult: {
+                      isValid: false,
+                      standardizedValue: "",
+                      confidence: 0.3,
+                      flags: ["invalid_format", "missing_required_data"],
+                      suggestions: [
+                        "Try format: YYYY-MM-DD",
+                        "Include all required fields",
+                      ],
+                      requiresReview: true,
+                    },
+                    onAccept: () => {
+                      console.log("Validation accepted");
+                      setPendingValidation(null);
+                    },
+                    onEdit: (newValue: string) => {
+                      console.log("Validation edited with value:", newValue);
+                      setPendingValidation(null);
+                    },
+                  });
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+              >
+                Test Validation Modal
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Export Step */}
       {currentStep === "export" && extractedData && (
         <div className="bg-white p-8 rounded-lg shadow-lg">
           <h2 className="text-2xl font-semibold mb-6">
@@ -778,6 +1217,7 @@ export default function Demo() {
                 or other systems.
               </p>
               <button
+                type="button"
                 onClick={exportToCSV}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold w-full"
               >
@@ -790,20 +1230,22 @@ export default function Demo() {
                 Save to Database
               </h3>
               <p className="text-green-700 mb-4">
-                Save directly to the case management system for immediate access
+                Save directly to the case‑management system for immediate access
                 by staff.
               </p>
               <button
+                type="button"
                 onClick={saveToDatabase}
                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold w-full"
               >
-                Save to System
+                Save Data to Database
               </button>
             </div>
           </div>
 
           <div className="mt-8 text-center">
             <button
+              type="button"
               onClick={resetDemo}
               className="border border-gray-300 hover:border-gray-400 text-gray-700 px-8 py-3 rounded-lg font-semibold"
             >
@@ -812,6 +1254,28 @@ export default function Demo() {
           </div>
         </div>
       )}
+
+      <ValidationModals
+        pendingConfirmation={pendingConfirmation}
+        pendingValidation={
+          pendingValidation
+            ? {
+                field: pendingValidation.field,
+                value: pendingValidation.value,
+                validationResult: {
+                  isValid: pendingValidation.validationResult.isValid,
+                  issues: pendingValidation.validationResult.flags || [],
+                  suggestions:
+                    pendingValidation.validationResult.suggestions || [],
+                },
+                onAccept: pendingValidation.onAccept,
+                onEdit: pendingValidation.onEdit,
+              }
+            : null
+        }
+        onCloseConfirmation={() => setPendingConfirmation(null)}
+        onCloseValidation={() => setPendingValidation(null)}
+      />
     </div>
   );
 }
