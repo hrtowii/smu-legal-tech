@@ -35,15 +35,19 @@ export function HoverBorderGradient({
     return directions[nextIndex];
   };
 
-const movingMap: Record<Direction, string> = {
-  TOP: "radial-gradient(50% 120% at 50% 0%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
-  LEFT: "radial-gradient(120% 50% at 0% 50%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
-  BOTTOM: "radial-gradient(50% 120% at 50% 100%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
-  RIGHT: "radial-gradient(120% 50% at 100% 50%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
-};
+  const movingMap: Record<Direction, string> = {
+    TOP: "radial-gradient(20.7% 50% at 50% 0%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
+    LEFT: "radial-gradient(16.6% 43.1% at 0% 50%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
+    BOTTOM:
+      "radial-gradient(20.7% 50% at 50% 100%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
+    RIGHT:
+      "radial-gradient(16.2% 41.199999999999996% at 100% 50%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
+  };
+ 
+  const highlight =
+    "radial-gradient(75% 181.15942028985506% at 50% 50%, #3275F8 0%, rgba(255, 255, 255, 0) 100%)";
+ 
 
-const highlight =
-  "radial-gradient(120% 200% at 50% 50%, #3275F8 0%, rgba(255, 255, 255, 0) 100%)";
 
 
   useEffect(() => {
@@ -79,7 +83,7 @@ const highlight =
           "flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit]"
         )}
         style={{
-          filter: "blur(10px)",
+          filter: "blur(6px)",
           position: "absolute",
           width: "100%",
           height: "100%",
@@ -92,7 +96,7 @@ const highlight =
         }}
         transition={{ ease: "linear", duration: duration ?? 1 }}
       />
-      <div className="bg-black absolute z-1 flex-none inset-[2px] rounded-[100px]" />
+      <div className="bg-black absolute z-1 flex-none inset-[2px] rounded-[inherit]" />
     </Tag>
   );
 }
