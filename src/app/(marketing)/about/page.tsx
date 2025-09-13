@@ -1,185 +1,327 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Users,
+  Building,
+  Scale,
+  Mail,
+  ArrowRight,
+} from "lucide-react";
+import Link from "next/link";
+
 export default function About() {
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div className="text-center mb-16">
-        <h1 className="text-4xl font-bold text-gray-900 mb-6">
+    <div className="container mx-auto py-16">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="text-center mb-16"
+      >
+        <Badge variant="outline" className="mb-4">
+          Trusted by Legal Professionals
+        </Badge>
+        <h1 className="text-4xl md:text-5xl font-bold mb-6">
           Transforming Legal Workflows
         </h1>
-        <p className="text-xl text-gray-600">
+        <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
           Why law firms, compliance officers, and courts choose our intelligent
           form processing solution
         </p>
-      </div>
+      </motion.div>
 
       <div className="space-y-16">
-        <section>
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            The Challenge
-          </h2>
-          <div className="bg-red-50 border-l-4 border-red-400 p-6 mb-8">
-            <p className="text-gray-700 text-lg leading-relaxed">
+        <motion.section
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="text-3xl font-bold mb-8">The Challenge</h2>
+          <Alert className="mb-8 border-destructive/50 text-destructive dark:border-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Critical Workflow Inefficiency</AlertTitle>
+            <AlertDescription className="text-lg leading-relaxed mt-2">
               Criminal defence aid applications face a fundamental accessibility
               challenge: they must remain available through hardcopy forms to
               ensure non-tech savvy applicants can access legal support. Yet,
               this creates significant workflow inefficiencies for government
               officers processing these applications.
-            </p>
-          </div>
+            </AlertDescription>
+          </Alert>
 
           <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h3 className="text-xl font-semibold mb-4">
-                What Officers Deal With Daily:
-              </h3>
-              <ul className="space-y-3 text-gray-600">
-                <li className="flex items-start">
-                  <span className="text-red-500 mr-2">•</span>
-                  Informal language responses: "not sure," "don't remember,"
-                  "maybe"
-                </li>
-                <li className="flex items-start">
-                  <span className="text-red-500 mr-2">•</span>
-                  Structural non-compliance: lengthy narratives in single boxes
-                </li>
-                <li className="flex items-start">
-                  <span className="text-red-500 mr-2">•</span>
-                  Incomplete mandatory fields scattered throughout forms
-                </li>
-                <li className="flex items-start">
-                  <span className="text-red-500 mr-2">•</span>
-                  Varying handwriting quality requiring interpretation
-                </li>
-              </ul>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  What Officers Deal With Daily
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2">
+                    <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-muted-foreground">
+                      Informal language responses: "not sure," "don't remember,"
+                      "maybe"
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-muted-foreground">
+                      Structural non-compliance: lengthy narratives in single
+                      boxes
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-muted-foreground">
+                      Incomplete mandatory fields scattered throughout forms
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-muted-foreground">
+                      Varying handwriting quality requiring interpretation
+                    </span>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
 
-            <div>
-              <h3 className="text-xl font-semibold mb-4">
-                Manual Processing Burden:
-              </h3>
-              <ul className="space-y-3 text-gray-600">
-                <li className="flex items-start">
-                  <span className="text-orange-500 mr-2">•</span>
-                  Decode handwritten text across varying legibility levels
-                </li>
-                <li className="flex items-start">
-                  <span className="text-orange-500 mr-2">•</span>
-                  Hunt for mandatory information in unexpected locations
-                </li>
-                <li className="flex items-start">
-                  <span className="text-orange-500 mr-2">•</span>
-                  Translate informal language into system terminology
-                </li>
-                <li className="flex items-start">
-                  <span className="text-orange-500 mr-2">•</span>
-                  Make judgment calls about ambiguous responses
-                </li>
-              </ul>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-orange-600">
+                  <AlertTriangle className="h-5 w-5" />
+                  Manual Processing Burden
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-muted-foreground">
+                      Decode handwritten text across varying legibility levels
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-muted-foreground">
+                      Hunt for mandatory information in unexpected locations
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-muted-foreground">
+                      Translate informal language into system terminology
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-muted-foreground">
+                      Make judgment calls about ambiguous responses
+                    </span>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
           </div>
-        </section>
+        </motion.section>
 
-        <section>
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Who Benefits
-          </h2>
+        <motion.section
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="text-3xl font-bold mb-8">Who Benefits</h2>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-blue-50 p-6 rounded-lg">
-              <h3 className="text-xl font-semibold text-blue-900 mb-4">
-                Law Firms
-              </h3>
-              <ul className="space-y-2 text-blue-800">
-                <li>• Reduce manual data entry time</li>
-                <li>• Minimize transcription errors</li>
-                <li>• Accelerate case intake process</li>
-                <li>• Improve client data accuracy</li>
-              </ul>
-            </div>
+            <Card className="bg-blue-50/50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                  <Scale className="h-5 w-5" />
+                  Law Firms
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-blue-600 dark:text-blue-400">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    Reduce manual data entry time
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    Minimize transcription errors
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    Accelerate case intake process
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    Improve client data accuracy
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
 
-            <div className="bg-green-50 p-6 rounded-lg">
-              <h3 className="text-xl font-semibold text-green-900 mb-4">
-                Compliance Officers
-              </h3>
-              <ul className="space-y-2 text-green-800">
-                <li>• Ensure mandatory field completion</li>
-                <li>• Standardize data formats</li>
-                <li>• Flag uncertain interpretations</li>
-                <li>• Maintain audit trails</li>
-              </ul>
-            </div>
+            <Card className="bg-green-50/50 dark:bg-green-950/50 border-green-200 dark:border-green-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                  <Users className="h-5 w-5" />
+                  Compliance Officers
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-green-600 dark:text-green-400">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    Ensure mandatory field completion
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    Standardize data formats
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    Flag uncertain interpretations
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    Maintain audit trails
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
 
-            <div className="bg-purple-50 p-6 rounded-lg">
-              <h3 className="text-xl font-semibold text-purple-900 mb-4">
-                Courts
-              </h3>
-              <ul className="space-y-2 text-purple-800">
-                <li>• Streamline case processing</li>
-                <li>• Improve data searchability</li>
-                <li>• Reduce administrative burden</li>
-                <li>• Enable digital case management</li>
-              </ul>
-            </div>
+            <Card className="bg-purple-50/50 dark:bg-purple-950/50 border-purple-200 dark:border-purple-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                  <Building className="h-5 w-5" />
+                  Courts
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-purple-600 dark:text-purple-400">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-purple-600" />
+                    Streamline case processing
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-purple-600" />
+                    Improve data searchability
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-purple-600" />
+                    Reduce administrative burden
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-purple-600" />
+                    Enable digital case management
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
           </div>
-        </section>
+        </motion.section>
 
-        <section>
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Our Solution
-          </h2>
+        <motion.section
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="text-3xl font-bold mb-8">Our Solution</h2>
 
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-8 rounded-lg">
-            <h3 className="text-2xl font-semibold mb-4">
-              Intelligent OCR + AI Processing
-            </h3>
-            <p className="text-lg mb-6">
-              We don't just recognize text – we understand context, handle
-              ambiguity, and ensure compliance.
-            </p>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-semibold mb-2">Smart Recognition:</h4>
-                <p className="text-blue-100">
-                  Our AI handles messy handwriting, informal language, and
-                  non-compliant responses that traditional OCR tools fail on.
-                </p>
+          <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0">
+            <CardHeader>
+              <CardTitle className="text-2xl text-white">
+                Intelligent OCR + AI Processing
+              </CardTitle>
+              <CardDescription className="text-blue-100 dark:text-blue-200 text-lg">
+                We don't just recognize text – we understand context, handle
+                ambiguity, and ensure compliance.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-blue-50">
+                    Smart Recognition:
+                  </h4>
+                  <p className="text-blue-100 dark:text-blue-200">
+                    Our AI handles messy handwriting, informal language, and
+                    non-compliant responses that traditional OCR tools fail on.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-blue-50">
+                    Human-in-the-Loop:
+                  </h4>
+                  <p className="text-blue-100 dark:text-blue-200">
+                    Uncertain interpretations are flagged for human review,
+                    ensuring accuracy while maintaining efficiency.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-semibold mb-2">Human-in-the-Loop:</h4>
-                <p className="text-blue-100">
-                  Uncertain interpretations are flagged for human review,
-                  ensuring accuracy while maintaining efficiency.
-                </p>
+            </CardContent>
+          </Card>
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+          viewport={{ once: true }}
+          className="text-center"
+        >
+          <Card className="max-w-3xl mx-auto">
+            <CardHeader>
+              <CardTitle className="text-3xl mb-4">
+                Ready to Transform Your Workflow?
+              </CardTitle>
+              <CardDescription className="text-lg">
+                Join the Public Defender's Office and other legal organizations
+                in modernizing form processing while maintaining accessibility
+                for all applicants.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button size="lg" asChild>
+                  <Link href="/demo" className="flex items-center gap-2">
+                    Try the Demo
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" asChild>
+                  <a
+                    href="mailto:contact@legalformai.com"
+                    className="flex items-center gap-2"
+                  >
+                    <Mail className="h-4 w-4" />
+                    Contact Us
+                  </a>
+                </Button>
               </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">
-            Ready to Transform Your Workflow?
-          </h2>
-          <p className="text-lg text-gray-600 mb-8">
-            Join the Public Defender's Office and other legal organizations in
-            modernizing form processing while maintaining accessibility for all
-            applicants.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="/demo"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-colors"
-            >
-              Try the Demo
-            </a>
-            <a
-              href="mailto:contact@legalformai.com"
-              className="border border-gray-300 hover:border-gray-400 text-gray-700 px-8 py-3 rounded-lg text-lg font-semibold transition-colors"
-            >
-              Contact Us
-            </a>
-          </div>
-        </section>
+            </CardContent>
+          </Card>
+        </motion.section>
       </div>
     </div>
   );

@@ -128,13 +128,14 @@ async function llmValidateField(
   context?: string,
 ): Promise<ValidationResult> {
   try {
+    const date = new Date();
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content: `You are an expert at validating form field data for legal financial documents. You should ONLY flag GLARING issues that would prevent processing or cause serious problems.
-
+THE CURRENT DATE IS ${date}. please take this into account when checking employment dates!
 BE LENIENT - Only flag fields when there are:
 1. CRITICAL ERRORS: Completely invalid formats (e.g., text in number fields, obviously fake data)
 2. MISSING ESSENTIAL DATA: Completely empty required fields

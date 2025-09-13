@@ -179,7 +179,7 @@ export default function History() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600 mt-4">
+          <p className="text-muted-foreground mt-4">
             Loading financial form history...
           </p>
         </div>
@@ -190,11 +190,11 @@ export default function History() {
   if (error) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="bg-red-50 border-l-4 border-red-400 p-4">
-          <p className="text-red-700">{error}</p>
+        <div className="bg-destructive/10 border-l-4 border-destructive p-4">
+          <p className="text-destructive">{error}</p>
           <button
             onClick={fetchRecords}
-            className="mt-2 text-red-600 hover:text-red-800 underline"
+            className="mt-2 text-destructive hover:text-destructive/80 underline"
           >
             Try again
           </button>
@@ -206,10 +206,10 @@ export default function History() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <h1 className="text-4xl font-bold text-foreground mb-4">
           Financial Form History
         </h1>
-        <p className="text-xl text-gray-600">
+        <p className="text-xl text-muted-foreground">
           Archive of all processed financial forms and extracted income data
         </p>
       </div>
@@ -217,7 +217,7 @@ export default function History() {
       {records.length === 0 ? (
         <div className="text-center py-12">
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className="mx-auto h-12 w-12 text-muted-foreground"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -229,10 +229,10 @@ export default function History() {
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">
+          <h3 className="mt-2 text-sm font-medium text-foreground">
             No financial forms yet
           </h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             Start by processing a form in the demo section.
           </p>
           <div className="mt-6">
@@ -245,50 +245,52 @@ export default function History() {
           </div>
         </div>
       ) : (
-        <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div className="bg-card shadow-lg rounded-lg overflow-hidden border">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Form ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Total Income
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Income Sources
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Confidence
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Flags
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-card divide-y divide-border">
                 {records.map((record) => (
-                  <tr key={record.id} className="hover:bg-gray-50">
+                  <tr key={record.id} className="hover:bg-muted/50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-foreground">
                         #{record.id}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-foreground">
                         ${getTotalIncome(record).toLocaleString()}
                       </div>
-                      <div className="text-sm text-gray-500">SGD/month</div>
+                      <div className="text-sm text-muted-foreground">
+                        SGD/month
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-foreground">
                         {(record.applicantIncome?.length || 0) +
                           (record.householdIncome?.length || 0) +
                           (record.otherIncomeSources?.length || 0)}{" "}
@@ -315,10 +317,12 @@ export default function History() {
                           {record.flags.length !== 1 ? "s" : ""}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-sm">None</span>
+                        <span className="text-muted-foreground text-sm">
+                          None
+                        </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {formatDate(record.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -344,15 +348,15 @@ export default function History() {
       )}
 
       {selectedRecord && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-card">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-foreground">
                 Financial Form Details - #{selectedRecord.id}
               </h3>
               <button
                 onClick={() => setSelectedRecord(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <svg
                   className="w-6 h-6"
@@ -373,10 +377,10 @@ export default function History() {
             <div className="max-h-96 overflow-y-auto space-y-6">
               {selectedRecord.financialSituationNote && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                  <h4 className="text-sm font-semibold text-foreground mb-2">
                     Financial Situation Note
                   </h4>
-                  <div className="p-3 bg-gray-50 rounded text-sm text-gray-900">
+                  <div className="p-3 bg-muted/50 rounded text-sm text-foreground">
                     {selectedRecord.financialSituationNote}
                   </div>
                 </div>
@@ -385,12 +389,15 @@ export default function History() {
               {selectedRecord.applicantIncome &&
                 selectedRecord.applicantIncome.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                    <h4 className="text-sm font-semibold text-foreground mb-2">
                       Applicant Income
                     </h4>
                     <div className="space-y-2">
                       {selectedRecord.applicantIncome.map((income, index) => (
-                        <div key={index} className="p-3 bg-blue-50 rounded">
+                        <div
+                          key={index}
+                          className="p-3 bg-blue-50/50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded"
+                        >
                           <div className="grid md:grid-cols-3 gap-2 text-sm">
                             <div>
                               <span className="font-medium">Occupation:</span>{" "}
@@ -419,12 +426,15 @@ export default function History() {
               {selectedRecord.householdIncome &&
                 selectedRecord.householdIncome.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                    <h4 className="text-sm font-semibold text-foreground mb-2">
                       Household Income
                     </h4>
                     <div className="space-y-2">
                       {selectedRecord.householdIncome.map((income, index) => (
-                        <div key={index} className="p-3 bg-green-50 rounded">
+                        <div
+                          key={index}
+                          className="p-3 bg-green-50/50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 rounded"
+                        >
                           <div className="grid md:grid-cols-4 gap-2 text-sm">
                             <div>
                               <span className="font-medium">Name:</span>{" "}
@@ -457,13 +467,16 @@ export default function History() {
               {selectedRecord.otherIncomeSources &&
                 selectedRecord.otherIncomeSources.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                    <h4 className="text-sm font-semibold text-foreground mb-2">
                       Other Income Sources
                     </h4>
                     <div className="space-y-2">
                       {selectedRecord.otherIncomeSources.map(
                         (income, index) => (
-                          <div key={index} className="p-3 bg-purple-50 rounded">
+                          <div
+                            key={index}
+                            className="p-3 bg-purple-50/50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 rounded"
+                          >
                             <div className="grid md:grid-cols-2 gap-2 text-sm">
                               <div>
                                 <span className="font-medium">
@@ -494,11 +507,11 @@ export default function History() {
             </div>
 
             {selectedRecord.flags.length > 0 && (
-              <div className="mt-4 p-4 bg-yellow-50 rounded-lg">
-                <h4 className="text-sm font-semibold text-yellow-800 mb-2">
+              <div className="mt-4 p-4 bg-yellow-50/50 dark:bg-yellow-950/50 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-2">
                   Review Flags:
                 </h4>
-                <ul className="text-sm text-yellow-700">
+                <ul className="text-sm text-yellow-700 dark:text-yellow-400">
                   {selectedRecord.flags.map((flag, index) => (
                     <li key={index}>• {flag}</li>
                   ))}
@@ -515,7 +528,7 @@ export default function History() {
               </button>
               <button
                 onClick={() => setSelectedRecord(null)}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg"
+                className="bg-secondary hover:bg-secondary/80 text-secondary-foreground px-4 py-2 rounded-lg"
               >
                 Close
               </button>

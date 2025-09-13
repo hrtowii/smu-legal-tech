@@ -1,8 +1,8 @@
 import Link from "next/link";
-import localFont from "next/font/local"
+import localFont from "next/font/local";
 
 const sfFont = localFont({
-  src: "../../../public/fonts/SF-Pro.ttf", 
+  src: "../../../public/fonts/SF-Pro.ttf",
   variable: "--font-SF",
 });
 
@@ -12,7 +12,7 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <main>{children}</main>
     </div>
   );

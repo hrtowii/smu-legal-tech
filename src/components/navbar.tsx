@@ -2,6 +2,9 @@
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Menu } from "lucide-react";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -12,7 +15,7 @@ const Navbar = () => {
   const backgroundColor = useTransform(
     scrollY,
     [0, 100],
-    ["rgba(255, 255, 255, 0.0)", "rgba(255, 255, 255, 0.8)"],
+    ["hsl(var(--background) / 0.0)", "hsl(var(--background) / 0.95)"],
   );
 
   const backdropBlur = useTransform(
@@ -42,17 +45,15 @@ const Navbar = () => {
 
   return (
     <motion.nav
-      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-border/40"
       style={{
         backgroundColor,
         backdropFilter: backdropBlur,
         WebkitBackdropFilter: backdropBlur,
-        borderBottomColor: `rgba(0, 0, 0, ${borderOpacity})`,
       }}
     >
-      <div className="absolute inset-0 bg-white/5" />
       <motion.div
-        className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"
+        className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent"
         style={{ opacity: borderOpacity }}
       />
 
@@ -66,7 +67,7 @@ const Navbar = () => {
           >
             <Link href="/" className="flex items-center">
               <span
-                className="text-2xl font-medium text-gray-900"
+                className="text-2xl font-medium text-foreground"
                 style={{
                   fontFamily:
                     '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif',
@@ -88,15 +89,15 @@ const Navbar = () => {
                 >
                   <Link
                     href={item.href}
-                    className="relative px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-all duration-200 group"
+                    className="relative px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-all duration-200 group"
                   >
                     <span className="relative z-10">{item.name}</span>
                     <motion.div
-                      className="absolute inset-0 bg-white/30 backdrop-blur-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      className="absolute inset-0 bg-accent/50 backdrop-blur-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-blue-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   </Link>
                 </motion.div>
               ))}
@@ -107,43 +108,22 @@ const Navbar = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="hidden md:block"
+            className="hidden md:flex items-center space-x-4"
           >
-            <Link href="/demo">
-              <motion.button
-                className="relative px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="relative z-10">Try Demo</span>
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  whileHover={{ scale: 1.1 }}
-                />
-              </motion.button>
-            </Link>
+            <ThemeToggle />
+            <Button
+              asChild
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500"
+            >
+              <Link href="/demo">Try Demo</Link>
+            </Button>
           </motion.div>
 
-          <div className="md:hidden">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="inline-flex items-center justify-center p-2 rounded-lg text-gray-700 hover:text-gray-900 hover:bg-white/30 backdrop-blur-sm transition-all duration-200"
-            >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </motion.button>
+          <div className="md:hidden flex items-center space-x-2">
+            <ThemeToggle />
+            <Button variant="outline" size="icon">
+              <Menu className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
