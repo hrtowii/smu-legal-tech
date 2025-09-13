@@ -15,6 +15,7 @@ interface ExtractedFinancialForm extends FinancialForm {
 
 export default function Demo() {
   const [file, setFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedData, setExtractedData] =
     useState<ExtractedFinancialForm | null>(null);
@@ -26,6 +27,13 @@ export default function Demo() {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
+
+      // Create image preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
     }
   };
 
@@ -46,10 +54,13 @@ export default function Demo() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log("Received data:", data); // Debug log
         setExtractedData(data);
         setCurrentStep("review");
       } else {
-        console.error("Extraction failed");
+        const errorData = await response.json();
+        console.error("Extraction failed:", errorData);
+        alert(`Extraction failed: ${errorData.error || "Unknown error"}`);
         setCurrentStep("upload");
       }
     } catch (error) {
@@ -284,6 +295,7 @@ export default function Demo() {
 
   const resetDemo = () => {
     setFile(null);
+    setImagePreview(null);
     setExtractedData(null);
     setCurrentStep("upload");
   };
@@ -331,53 +343,91 @@ export default function Demo() {
             1. Upload Financial Form
           </h2>
 
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-            <input
-              type="file"
-              onChange={handleFileUpload}
-              accept=".pdf,.jpg,.jpeg,.png"
-              className="hidden"
-              id="file-upload"
-            />
-            <label htmlFor="file-upload" className="cursor-pointer">
-              <div className="text-gray-600">
-                <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
-                  stroke="currentColor"
-                  fill="none"
-                  viewBox="0 0 48 48"
-                >
-                  <path
-                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <p className="mt-2 text-lg">
-                  <span className="font-medium text-blue-600 hover:text-blue-500">
-                    Click to upload
-                  </span>{" "}
-                  or drag and drop
-                </p>
-                <p className="text-sm text-gray-500">
-                  PDF, PNG, JPG up to 10MB
-                </p>
-              </div>
-            </label>
-          </div>
+          {!file ? (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+              <input
+                type="file"
+                onChange={handleFileUpload}
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden"
+                id="file-upload"
+              />
+              <label htmlFor="file-upload" className="cursor-pointer">
+                <div className="text-gray-600">
+                  <svg
+                    className="mx-auto h-12 w-12 text-gray-400"
+                    stroke="currentColor"
+                    fill="none"
+                    viewBox="0 0 48 48"
+                  >
+                    <path
+                      d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <p className="mt-2 text-lg">
+                    <span className="font-medium text-blue-600 hover:text-blue-500">
+                      Click to upload
+                    </span>{" "}
+                    or drag and drop
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    PDF, PNG, JPG up to 10MB
+                  </p>
+                </div>
+              </label>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-lg font-semibold mb-3">Image Preview:</h3>
+                  <div className="flex justify-center">
+                    <img
+                      src={imagePreview}
+                      alt="Uploaded financial form"
+                      className="max-w-full max-h-96 object-contain border rounded shadow"
+                    />
+                  </div>
+                </div>
+              )}
 
-          {file && (
-            <div className="mt-6">
-              <p className="text-sm text-gray-600 mb-4">
-                Selected file: {file.name}
-              </p>
-              <button
-                onClick={handleExtract}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold"
-              >
-                Extract Financial Data
-              </button>
+              {/* File Info and Actions */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {file.name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setFile(null);
+                        setImagePreview(null);
+                      }}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium"
+                    >
+                      Remove
+                    </button>
+                    <button
+                      onClick={handleExtract}
+                      disabled={isProcessing}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg font-semibold"
+                    >
+                      {isProcessing
+                        ? "Processing..."
+                        : "Extract Financial Data"}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -433,6 +483,18 @@ export default function Demo() {
           )}
 
           <div className="space-y-8">
+            {/* Debug Info */}
+            {process.env.NODE_ENV === "development" && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+                <h4 className="text-sm font-medium text-yellow-800 mb-2">
+                  Debug Info:
+                </h4>
+                <pre className="text-xs text-yellow-700 overflow-auto">
+                  {JSON.stringify(extractedData, null, 2)}
+                </pre>
+              </div>
+            )}
+
             {/* Financial Situation Note */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -458,6 +520,13 @@ export default function Demo() {
                   Add Row
                 </button>
               </div>
+              {(!extractedData.applicantIncome ||
+                extractedData.applicantIncome.length === 0) && (
+                <div className="text-gray-500 text-sm mb-4">
+                  No applicant income data extracted. Click "Add Row" to
+                  manually add entries.
+                </div>
+              )}
               {extractedData.applicantIncome?.map((income, index) => (
                 <div
                   key={index}
@@ -529,6 +598,13 @@ export default function Demo() {
                   Add Row
                 </button>
               </div>
+              {(!extractedData.householdIncome ||
+                extractedData.householdIncome.length === 0) && (
+                <div className="text-gray-500 text-sm mb-4">
+                  No household income data extracted. Click "Add Row" to
+                  manually add entries.
+                </div>
+              )}
               {extractedData.householdIncome?.map((income, index) => (
                 <div
                   key={index}
@@ -617,6 +693,13 @@ export default function Demo() {
                   Add Row
                 </button>
               </div>
+              {(!extractedData.otherIncomeSources ||
+                extractedData.otherIncomeSources.length === 0) && (
+                <div className="text-gray-500 text-sm mb-4">
+                  No other income sources extracted. Click "Add Row" to manually
+                  add entries.
+                </div>
+              )}
               {extractedData.otherIncomeSources?.map((income, index) => (
                 <div
                   key={index}

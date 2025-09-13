@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { z } from "zod";
-import { zodResponseFormat } from "openai/helpers/zod";
 
 const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
+  // baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENAI_API_KEY,
   defaultHeaders: {
     "HTTP-Referer": "https://smu-legal-tech.vercel.app",
     "X-Title": "SMU Legal Tech - Financial Form Extractor",
@@ -14,26 +13,38 @@ const openai = new OpenAI({
 
 // Zod schemas based on the FinancialForm interface
 const ApplicantIncomeSchema = z.object({
-  occupation: z.string().optional().describe("Occupation or job title"),
+  occupation: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Occupation or job title"),
   grossMonthlyIncomeSGD: z
     .number()
+    .nullable()
     .optional()
     .describe("Gross monthly income in Singapore Dollars"),
   periodOfEmployment: z
     .string()
+    .nullable()
     .optional()
     .describe("Period of employment (e.g., 'Apr 2022 - Dec 2022')"),
 });
 
 const HouseholdIncomeSchema = z.object({
-  name: z.string().optional().describe("Name of household member"),
+  name: z.string().nullable().optional().describe("Name of household member"),
   relationshipToApplicant: z
     .string()
+    .nullable()
     .optional()
     .describe("Relationship to applicant (e.g., 'Father', 'Mother')"),
-  occupation: z.string().optional().describe("Occupation of household member"),
+  occupation: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Occupation of household member"),
   grossMonthlyIncomeSGD: z
     .number()
+    .nullable()
     .optional()
     .describe("Gross monthly income in Singapore Dollars"),
 });
@@ -41,11 +52,16 @@ const HouseholdIncomeSchema = z.object({
 const OtherIncomeSourceSchema = z.object({
   description: z
     .string()
+    .nullable()
     .optional()
     .describe(
       "Description of income source (e.g., 'Rental income', 'CPF payouts')",
     ),
-  amountSGD: z.number().optional().describe("Amount in Singapore Dollars"),
+  amountSGD: z
+    .number()
+    .nullable()
+    .optional()
+    .describe("Amount in Singapore Dollars"),
 });
 
 const ExtractedFinancialFormSchema = z.object({
@@ -77,6 +93,61 @@ const ExtractedFinancialFormSchema = z.object({
     .describe("Overall confidence score of the extraction (0-1)"),
 });
 
+// Manual JSON Schema definition as fallback
+const jsonSchema = {
+  type: "object",
+  properties: {
+    applicantIncome: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          occupation: { type: "string", nullable: true },
+          grossMonthlyIncomeSGD: { type: "number", nullable: true },
+          periodOfEmployment: { type: "string", nullable: true },
+        },
+        additionalProperties: false,
+      },
+    },
+    householdIncome: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", nullable: true },
+          relationshipToApplicant: { type: "string", nullable: true },
+          occupation: { type: "string", nullable: true },
+          grossMonthlyIncomeSGD: { type: "number", nullable: true },
+        },
+        additionalProperties: false,
+      },
+    },
+    otherIncomeSources: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          description: { type: "string", nullable: true },
+          amountSGD: { type: "number", nullable: true },
+        },
+        additionalProperties: false,
+      },
+    },
+    financialSituationNote: { type: "string" },
+    flags: {
+      type: "array",
+      items: { type: "string" },
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+    },
+  },
+  required: ["flags", "confidence"],
+  additionalProperties: false,
+};
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -94,43 +165,97 @@ export async function POST(request: NextRequest) {
 
     // Create the data URL for the image
     const imageUrl = `data:${mimeType};base64,${base64Image}`;
-    console.log(imageUrl);
+
     // Use OpenAI Vision API with structured outputs
     const completion = await openai.chat.completions.create({
-      model: "openrouter/sonoma-sky-alpha",
+      model: "gpt-4o",
       messages: [
+        {
+          role: "system",
+          content: `You are an expert financial form data extraction system. You MUST respond with valid JSON that exactly matches the provided schema structure. Do not add extra fields or change field names. Always return a complete JSON object even if some data is missing.`,
+        },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `You are an expert financial form data extraction system. Analyze this handwritten/scanned financial declaration form image and extract structured financial data.
+              text: `Analyze this handwritten/scanned financial declaration form image and extract structured financial data.
 
-Extract the following information:
+CRITICAL: You MUST respond with a JSON object in this EXACT structure (copy exactly):
+{
+  "applicantIncome": [
+    {
+      "occupation": "string or null",
+      "grossMonthlyIncomeSGD": number or null,
+      "periodOfEmployment": "string or null"
+    }
+  ],
+  "householdIncome": [
+    {
+      "name": "string or null",
+      "relationshipToApplicant": "string or null",
+      "occupation": "string or null",
+      "grossMonthlyIncomeSGD": number or null
+    }
+  ],
+  "otherIncomeSources": [
+    {
+      "description": "string or null",
+      "amountSGD": number or null
+    }
+  ],
+  "financialSituationNote": "string or empty string",
+  "flags": ["array", "of", "issue", "strings"],
+  "confidence": 0.85
+}
 
-1. **Applicant Income**: Look for sections about the applicant's own income sources
-   - Extract occupation, monthly income amounts, and employment periods
-   - Create separate entries for each income source
+EXTRACTED DATA REQUIREMENTS:
+1. APPLICANT INCOME (applicantIncome array):
+   - Extract applicant's own income sources from relevant sections
+   - occupation: Job title/profession (e.g., "Software Engineer", "Freelancer")
+   - grossMonthlyIncomeSGD: Monthly income as NUMBER (remove $, SGD, commas, e.g., "2,500" → 2500)
+   - periodOfEmployment: Employment period (e.g., "Jan 2022 - Present", "Mar 2021 - Dec 2021")
+   - Create one object per income source/row
+   - Use null for missing values, never omit fields
 
-2. **Household Income**: Look for sections about family/household members' income
-   - Extract name, relationship to applicant, occupation, and monthly income
-   - Create separate entries for each household member
+2. HOUSEHOLD INCOME (householdIncome array):
+   - Extract family/household members' income from relevant sections
+   - name: Full name of household member
+   - relationshipToApplicant: Relationship (e.g., "Father", "Mother", "Spouse", "Sibling")
+   - occupation: Their job title/profession
+   - grossMonthlyIncomeSGD: Their monthly income as NUMBER
+   - Create one object per household member/row
+   - Use null for missing values
 
-3. **Other Income Sources**: Look for additional income like rental, CPF, allowances
-   - Extract description and amount for each source
+3. OTHER INCOME SOURCES (otherIncomeSources array):
+   - Extract additional income like rental, CPF payouts, allowances, investments
+   - description: Brief description (e.g., "Rental income from HDB", "CPF withdrawal", "Child allowance")
+   - amountSGD: Amount as NUMBER (remove currency symbols)
+   - Create one object per additional income source
 
-4. **Financial Situation**: Look for any notes about financial hardship or circumstances
+4. FINANCIAL SITUATION NOTE:
+   - Extract any free-text notes about financial hardship, circumstances, or explanations
+   - If no notes found, use: "No additional financial situation information provided"
 
-5. **Quality Assessment**:
-   - Flag issues like unclear handwriting, missing data, inconsistent information
-   - Provide confidence score based on image clarity and data completeness
+5. FLAGS ARRAY:
+   - List extraction issues: "unclear handwriting", "missing data", "inconsistent information", "illegible text", "incomplete form"
+   - Always include at least one flag if extraction quality is below 0.9
 
-Instructions:
-- Convert all monetary amounts to numbers (remove currency symbols, commas)
-- Keep names, occupations, and descriptions as text
-- If you see table structures, extract each row as a separate entry
-- Look for common form sections: "Applicant Income", "Household Income", "Other Income"
-- Be thorough and extract every piece of financial information visible`,
+6. CONFIDENCE SCORE:
+   - 1.0 = Perfectly clear and complete extraction
+   - 0.8-0.9 = Mostly clear, minor issues
+   - 0.5-0.7 = Significant handwriting issues but data mostly recoverable
+   - 0.0-0.4 = Very unclear, major data loss
+
+DATA PROCESSING RULES:
+- Convert ALL monetary amounts to numbers: "$2,500" → 2500, "SGD 1,200" → 1200
+- Keep names, occupations, descriptions as strings (preserve original text)
+- Handle tables: Each row = one array object
+- Common sections to look for: "Applicant Income", "Household Income", "Other Income", "Family Members", "Additional Income"
+- If a field is blank/unreadable, use null (not empty string or undefined)
+- Never return incomplete JSON objects - always include all required fields
+
+IMPORTANT: The AI will validate your JSON against a strict schema. Any deviation from the exact structure will cause parsing errors. Always return complete, valid JSON.`,
             },
             {
               type: "image_url",
@@ -141,17 +266,38 @@ Instructions:
           ],
         },
       ],
-      response_format: zodResponseFormat(
-        ExtractedFinancialFormSchema,
-        "financial_form_extraction",
-      ),
-      max_tokens: 20000,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "ExtractedFinancialFormSchema",
+          schema: jsonSchema,
+        },
+      },
+      temperature: 0.1,
+      max_tokens: 16384,
     });
-    // "{\"applicant_income\":[{\"occupation\":\"Unclear (possibly 'Coder' or scribbled)\",\"monthly_income\":1000,\"period\":\"From Nov 2022 to present (incomplete)\"}],\"household_income\":[{\"name\":\"Mew (possibly 'Mei' or unclear handwriting)\",\"relationship\":\"Applicant (self? unclear)\",\"occupation\":\"Plumber (plum)\",\"monthly_income\":2000},{\"name\":\"Dad\",\"relationship\":\"Father\",\"occupation\":\"Plumber (plumb)\",\"monthly_income\":null},{\"name\":\"Unclear\",\"relationship\":\"Unclear\",\"occupation\":\"Odd jobs full time\",\"monthly_income\":null}],\"other_income\":[{\"description\":\"Allowances or similar (oluancy)\",\"amount\":100},{\"description\":\"Rental or other (amount around)\",\"amount\":300}],\"financial_situation\":\"No elaboration provided on financial situation.\",\"quality_assessment\":{\"issues\":[\"Unclear handwriting throughout, e.g., 'meow', 'plum', 'oluancy' likely OCR/handwriting errors\",\"Missing data in several fields, e.g., incomplete periods, blank rows\",\"Inconsistent formatting in table structures, periods not fully specified\"],\"confidence_score\":45}}
-    const extractedData = completion.choices[0].message.content;
-    console.log(extractedData);
-    if (!extractedData) {
-      throw new Error("No parsed data received from AI model");
+
+    console.log("Raw AI response:", completion.choices[0].message.content);
+
+    // Parse the JSON response manually since we're not using zodResponseFormat
+    let extractedData;
+    try {
+      extractedData = JSON.parse(completion.choices[0].message.content || "{}");
+    } catch (parseError) {
+      console.error("JSON parsing error:", parseError);
+      throw new Error("Invalid JSON response from AI model");
+    }
+
+    // Validate against Zod schema
+    const validationResult =
+      ExtractedFinancialFormSchema.safeParse(extractedData);
+    if (!validationResult.success) {
+      console.error("Zod validation errors:", validationResult.error);
+      // Continue with the raw data but add validation warnings to flags
+      extractedData.flags = [
+        ...(extractedData.flags || []),
+        "Data validation warnings - manual review recommended",
+      ];
     }
 
     // Handle potential refusal
@@ -174,21 +320,25 @@ Instructions:
       otherIncomeSources: extractedData.otherIncomeSources || [],
       financialSituationNote: extractedData.financialSituationNote || "",
       flags: extractedData.flags || [],
-      confidence: extractedData.confidence || 0.5,
+      confidence: Math.max(0, Math.min(1, extractedData.confidence || 0.5)), // Ensure 0-1 range
     };
 
     return NextResponse.json(validatedData);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Financial form extraction error:", error);
 
     // Return a fallback response if AI extraction fails
-    return NextResponse.json({
-      applicantIncome: [],
-      householdIncome: [],
-      otherIncomeSources: [],
-      financialSituationNote: "Error processing form - manual review required",
-      flags: ["AI extraction failed", "Manual review required"],
-      confidence: 0.0,
-    });
+    return NextResponse.json(
+      {
+        applicantIncome: [],
+        householdIncome: [],
+        otherIncomeSources: [],
+        financialSituationNote:
+          "Error processing form - manual review required",
+        flags: ["AI extraction failed", "Manual review required"],
+        confidence: 0.0,
+      },
+      { status: 500 },
+    );
   }
 }
