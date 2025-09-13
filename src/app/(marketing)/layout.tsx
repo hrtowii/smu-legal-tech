@@ -1,4 +1,10 @@
 import Link from "next/link";
+import localFont from "next/font/local"
+
+const sfFont = localFont({
+  src: "../../../public/fonts/SF-Pro.ttf", 
+  variable: "--font-SF",
+});
 
 export default function MarketingLayout({
   children,
@@ -12,7 +18,7 @@ export default function MarketingLayout({
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link href="/" className="text-xl font-bold text-gray-900">
-                LegalForm AI
+                Scribe.
               </Link>
             </div>
             <div className="flex items-center space-x-8">

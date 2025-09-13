@@ -1,121 +1,163 @@
+"use client";
 import Link from "next/link";
+import localFont from "next/font/local";
+import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+
+// const sfFont = localFont({
+//   src: "../../../public/fonts/SF-Pro.ttf", 
+//   variable: "--font-SF",
+// });
 
 export default function Home() {
+  const [offsetY, setOffsetY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => setOffsetY(window.scrollY);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
-            Turn legal forms into
-            <span className="text-blue-600"> structured data</span>
-            <br />
-            instantly
-          </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Transform handwritten criminal defence aid applications into
-            searchable, editable data. Our AI handles messy handwriting,
-            informal responses, and incomplete fields.
-          </p>
+    <div className="bg-gradient-to-br from-blue-100 via-white to-indigo-200 min-h-screen overflow-x-hidden">
+      {/* Hero Section */}
+      <section className="relative h-screen flex flex-col justify-center items-center text-center px-6 overflow-hidden">
+        {/* Parallax Image */}
+        <motion.img
+          src="https://png.pngtree.com/png-vector/20240602/ourmid/pngtree-luxurious-golden-metal-texture-with-shimmering-shine-png-image_12357421.png"
+          alt="Form illustration"
+          style={{ transform: `translateY(${offsetY * 0.3}px)` }}
+          className="absolute top-0 left-0 w-full h-full object-cover opacity-60"
+        />
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <Link
-              href="/demo"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-colors"
-            >
-              Try the Demo
-            </Link>
-            <Link
-              href="/about"
-              className="border border-gray-300 hover:border-gray-400 text-gray-700 px-8 py-3 rounded-lg text-lg font-semibold transition-colors"
-            >
-              Learn More
-            </Link>
-          </div>
-        </div>
 
-        <div className="grid md:grid-cols-3 gap-8 mt-16">
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-              <svg
-                className="w-6 h-6 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">OCR Recognition</h3>
-            <p className="text-gray-600">
-              Advanced handwriting recognition that works with messy, informal
+   <motion.h1
+  initial={{ opacity: 0, y: 40 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 1 }}
+  className="relative text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6"
+>
+  Tran
+          <motion.span
+            initial={{ backgroundPosition: "0% 50%" }}
+            animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
+            transition={{
+              duration: 2.5,
+              repeat: Infinity,
+              repeatType: "loop",
+              ease: "linear",
+            }}
+            style={{
+              backgroundImage:
+                "linear-gradient(160deg, #6f70ff, #efa9ff, #6f70ff)", // golden shimmer
+              backgroundSize: "200% 200%",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              color: "transparent",
+              display: "inline-block",
+            }}
+          >
+            scribe
+          </motion.span>
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.3 }}
+          className={`relative text-xl text-gray-600 max-w-2xl mx-auto mb-10`}
+        >
+          your mom 
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 0.6 }}
+          className="relative flex gap-4"
+        >
+          <Link
+            href="/demo"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full text-lg font-semibold transition-colors"
+          >
+            Try the Demo
+          </Link>
+          <Link
+            href="/about"
+            className="backdrop-blur-md border border-gray-300 hover:border-gray-400 text-gray-700 px-8 py-3 rounded-full text-lg font-semibold transition-colors bg-white/50"
+          >
+            Learn More
+          </Link>
+        </motion.div>
+      </section>
+
+      {/* Content Section */}
+      <section className="relative z-10 py-20 px-6 bg-white/30 backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
+          {/* Card 1 */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="p-8 rounded-2xl shadow-md bg-white/60 backdrop-blur-md"
+          >
+            <h3 className="text-2xl font-semibold mb-4">OCR Recognition</h3>
+            <p className="text-gray-700">
+              Advanced handwriting recognition that adapts to messy, informal
               responses and varying writing styles.
             </p>
-          </div>
+          </motion.div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-              <svg
-                className="w-6 h-6 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">AI Processing</h3>
-            <p className="text-gray-600">
-              Intelligent mapping of informal responses to structured formats
-              with human review flagging.
+          {/* Card 2 */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            viewport={{ once: true }}
+            className="p-8 rounded-2xl shadow-md bg-white/60 backdrop-blur-md"
+          >
+            <h3 className="text-2xl font-semibold mb-4">AI Processing</h3>
+            <p className="text-gray-700">
+              Intelligent mapping of handwritten responses to structured
+              formats, with built-in human review flagging.
             </p>
-          </div>
+          </motion.div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-              <svg
-                className="w-6 h-6 text-purple-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Export & Save</h3>
-            <p className="text-gray-600">
-              Download as CSV or save directly to your case management system
-              for immediate use.
+          {/* Card 3 */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            viewport={{ once: true }}
+            className="p-8 rounded-2xl shadow-md bg-white/60 backdrop-blur-md"
+          >
+            <h3 className="text-2xl font-semibold mb-4">Export & Save</h3>
+            <p className="text-gray-700">
+              Download as CSV or integrate directly into your case management
+              system for instant use.
             </p>
-          </div>
+          </motion.div>
         </div>
 
-        <div className="mt-20 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Built for the Public Defender's Office
+        {/* Bottom Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.3 }}
+          viewport={{ once: true }}
+          className="text-center mt-24"
+        >
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">
+            Built for the Public Defender’s Office
           </h2>
-          <p className="text-lg text-gray-600 max-w-4xl mx-auto">
-            Designed specifically to handle the real-world challenges of
-            criminal defence aid applications. Our solution reduces manual
-            processing time while maintaining the accessibility that hardcopy
-            forms provide.
+          <p className="text-lg text-gray-700 max-w-3xl mx-auto">
+            Designed to handle the real-world challenges of criminal defence aid
+            applications, reducing manual workload while keeping hardcopy
+            accessibility.
           </p>
-        </div>
-      </div>
+        </motion.div>
+      </section>
     </div>
   );
 }
