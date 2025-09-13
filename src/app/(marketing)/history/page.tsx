@@ -1,20 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  FinancialForm,
+  ApplicantIncome,
+  HouseholdIncome,
+  OtherIncomeSource,
+} from "../../api/data";
 
-interface ExtractedRecord {
+interface FinancialFormRecord extends FinancialForm {
   id: number;
-  applicant_name: string;
-  contact_number: string;
-  email: string;
-  address: string;
-  date_of_birth: string;
-  charges: string;
-  prior_convictions: string;
-  employment_status: string;
-  monthly_income: string;
-  dependents: string;
-  emergency_contact: string;
   flags: string[];
   confidence: number;
   created_at: string;
@@ -22,12 +17,11 @@ interface ExtractedRecord {
 }
 
 export default function History() {
-  const [records, setRecords] = useState<ExtractedRecord[]>([]);
+  const [records, setRecords] = useState<FinancialFormRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRecord, setSelectedRecord] = useState<ExtractedRecord | null>(
-    null,
-  );
+  const [selectedRecord, setSelectedRecord] =
+    useState<FinancialFormRecord | null>(null);
 
   useEffect(() => {
     fetchRecords();
@@ -50,25 +44,83 @@ export default function History() {
     }
   };
 
-  const exportRecordToCSV = (record: ExtractedRecord) => {
+  const exportRecordToCSV = (record: FinancialFormRecord) => {
     const csvData = [
-      ["Field", "Value"],
-      ["ID", record.id.toString()],
-      ["Applicant Name", record.applicant_name],
-      ["Contact Number", record.contact_number],
-      ["Email", record.email],
-      ["Address", record.address],
-      ["Date of Birth", record.date_of_birth],
-      ["Charges", record.charges],
-      ["Prior Convictions", record.prior_convictions],
-      ["Employment Status", record.employment_status],
-      ["Monthly Income", record.monthly_income],
-      ["Dependents", record.dependents],
-      ["Emergency Contact", record.emergency_contact],
-      ["Flags", record.flags.join("; ")],
-      ["Confidence Score", record.confidence.toString()],
-      ["Created At", record.created_at],
+      ["Section", "Field", "Value"],
+      ["ID", "", record.id.toString()],
+      ["Financial Situation", "Note", record.financialSituationNote || ""],
     ];
+
+    // Add applicant income data
+    if (record.applicantIncome && record.applicantIncome.length > 0) {
+      record.applicantIncome.forEach((income, index) => {
+        csvData.push([
+          `Applicant Income ${index + 1}`,
+          "Occupation",
+          income.occupation || "",
+        ]);
+        csvData.push([
+          `Applicant Income ${index + 1}`,
+          "Monthly Income (SGD)",
+          income.grossMonthlyIncomeSGD?.toString() || "0",
+        ]);
+        csvData.push([
+          `Applicant Income ${index + 1}`,
+          "Employment Period",
+          income.periodOfEmployment || "",
+        ]);
+      });
+    }
+
+    // Add household income data
+    if (record.householdIncome && record.householdIncome.length > 0) {
+      record.householdIncome.forEach((income, index) => {
+        csvData.push([
+          `Household Income ${index + 1}`,
+          "Name",
+          income.name || "",
+        ]);
+        csvData.push([
+          `Household Income ${index + 1}`,
+          "Relationship",
+          income.relationshipToApplicant || "",
+        ]);
+        csvData.push([
+          `Household Income ${index + 1}`,
+          "Occupation",
+          income.occupation || "",
+        ]);
+        csvData.push([
+          `Household Income ${index + 1}`,
+          "Monthly Income (SGD)",
+          income.grossMonthlyIncomeSGD?.toString() || "0",
+        ]);
+      });
+    }
+
+    // Add other income sources
+    if (record.otherIncomeSources && record.otherIncomeSources.length > 0) {
+      record.otherIncomeSources.forEach((income, index) => {
+        csvData.push([
+          `Other Income ${index + 1}`,
+          "Description",
+          income.description || "",
+        ]);
+        csvData.push([
+          `Other Income ${index + 1}`,
+          "Amount (SGD)",
+          income.amountSGD?.toString() || "0",
+        ]);
+      });
+    }
+
+    csvData.push(["Metadata", "Flags", record.flags.join("; ")]);
+    csvData.push([
+      "Metadata",
+      "Confidence Score",
+      record.confidence.toString(),
+    ]);
+    csvData.push(["Metadata", "Created At", record.created_at]);
 
     const csvContent = csvData
       .map((row) => row.map((cell) => `"${cell}"`).join(","))
@@ -77,7 +129,7 @@ export default function History() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `extraction_${record.id}_${new Date().getTime()}.csv`;
+    a.download = `financial_form_${record.id}_${new Date().getTime()}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -92,12 +144,44 @@ export default function History() {
     });
   };
 
+  const getTotalIncome = (record: FinancialFormRecord) => {
+    let total = 0;
+
+    // Add applicant income
+    if (record.applicantIncome) {
+      total += record.applicantIncome.reduce(
+        (sum, income) => sum + (income.grossMonthlyIncomeSGD || 0),
+        0,
+      );
+    }
+
+    // Add household income
+    if (record.householdIncome) {
+      total += record.householdIncome.reduce(
+        (sum, income) => sum + (income.grossMonthlyIncomeSGD || 0),
+        0,
+      );
+    }
+
+    // Add other income
+    if (record.otherIncomeSources) {
+      total += record.otherIncomeSources.reduce(
+        (sum, income) => sum + (income.amountSGD || 0),
+        0,
+      );
+    }
+
+    return total;
+  };
+
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading extraction history...</p>
+          <p className="text-gray-600 mt-4">
+            Loading financial form history...
+          </p>
         </div>
       </div>
     );
@@ -123,10 +207,10 @@ export default function History() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          Extraction History
+          Financial Form History
         </h1>
         <p className="text-xl text-gray-600">
-          Archive of all processed legal forms and extracted data
+          Archive of all processed financial forms and extracted income data
         </p>
       </div>
 
@@ -146,7 +230,7 @@ export default function History() {
             />
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">
-            No extractions yet
+            No financial forms yet
           </h3>
           <p className="mt-1 text-sm text-gray-500">
             Start by processing a form in the demo section.
@@ -167,10 +251,13 @@ export default function History() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Applicant
+                    Form ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Charges
+                    Total Income
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Income Sources
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Confidence
@@ -191,15 +278,21 @@ export default function History() {
                   <tr key={record.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {record.applicant_name || "N/A"}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {record.contact_number}
+                        #{record.id}
                       </div>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        ${getTotalIncome(record).toLocaleString()}
+                      </div>
+                      <div className="text-sm text-gray-500">SGD/month</div>
+                    </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs truncate">
-                        {record.charges || "Not specified"}
+                      <div className="text-sm text-gray-900">
+                        {(record.applicantIncome?.length || 0) +
+                          (record.householdIncome?.length || 0) +
+                          (record.otherIncomeSources?.length || 0)}{" "}
+                        sources
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -253,10 +346,10 @@ export default function History() {
       {/* Record Detail Modal */}
       {selectedRecord && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-3xl shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                Extraction Details - {selectedRecord.applicant_name}
+                Financial Form Details - #{selectedRecord.id}
               </h3>
               <button
                 onClick={() => setSelectedRecord(null)}
@@ -278,24 +371,132 @@ export default function History() {
               </button>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-              {Object.entries(selectedRecord)
-                .filter(
-                  ([key]) =>
-                    !["id", "flags", "created_at", "updated_at"].includes(key),
-                )
-                .map(([key, value]) => (
-                  <div key={key} className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {key
-                        .replace(/_/g, " ")
-                        .replace(/\b\w/g, (l) => l.toUpperCase())}
-                    </label>
-                    <div className="p-2 bg-gray-50 rounded text-sm text-gray-900">
-                      {String(value) || "N/A"}
+            <div className="max-h-96 overflow-y-auto space-y-6">
+              {/* Financial Situation Note */}
+              {selectedRecord.financialSituationNote && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                    Financial Situation Note
+                  </h4>
+                  <div className="p-3 bg-gray-50 rounded text-sm text-gray-900">
+                    {selectedRecord.financialSituationNote}
+                  </div>
+                </div>
+              )}
+
+              {/* Applicant Income */}
+              {selectedRecord.applicantIncome &&
+                selectedRecord.applicantIncome.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                      Applicant Income
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedRecord.applicantIncome.map((income, index) => (
+                        <div key={index} className="p-3 bg-blue-50 rounded">
+                          <div className="grid md:grid-cols-3 gap-2 text-sm">
+                            <div>
+                              <span className="font-medium">Occupation:</span>{" "}
+                              {income.occupation || "N/A"}
+                            </div>
+                            <div>
+                              <span className="font-medium">
+                                Monthly Income:
+                              </span>{" "}
+                              $
+                              {income.grossMonthlyIncomeSGD?.toLocaleString() ||
+                                "0"}{" "}
+                              SGD
+                            </div>
+                            <div>
+                              <span className="font-medium">Period:</span>{" "}
+                              {income.periodOfEmployment || "N/A"}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
+                )}
+
+              {/* Household Income */}
+              {selectedRecord.householdIncome &&
+                selectedRecord.householdIncome.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                      Household Income
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedRecord.householdIncome.map((income, index) => (
+                        <div key={index} className="p-3 bg-green-50 rounded">
+                          <div className="grid md:grid-cols-4 gap-2 text-sm">
+                            <div>
+                              <span className="font-medium">Name:</span>{" "}
+                              {income.name || "N/A"}
+                            </div>
+                            <div>
+                              <span className="font-medium">Relationship:</span>{" "}
+                              {income.relationshipToApplicant || "N/A"}
+                            </div>
+                            <div>
+                              <span className="font-medium">Occupation:</span>{" "}
+                              {income.occupation || "N/A"}
+                            </div>
+                            <div>
+                              <span className="font-medium">
+                                Monthly Income:
+                              </span>{" "}
+                              $
+                              {income.grossMonthlyIncomeSGD?.toLocaleString() ||
+                                "0"}{" "}
+                              SGD
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* Other Income Sources */}
+              {selectedRecord.otherIncomeSources &&
+                selectedRecord.otherIncomeSources.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                      Other Income Sources
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedRecord.otherIncomeSources.map(
+                        (income, index) => (
+                          <div key={index} className="p-3 bg-purple-50 rounded">
+                            <div className="grid md:grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <span className="font-medium">
+                                  Description:
+                                </span>{" "}
+                                {income.description || "N/A"}
+                              </div>
+                              <div>
+                                <span className="font-medium">Amount:</span> $
+                                {income.amountSGD?.toLocaleString() || "0"} SGD
+                              </div>
+                            </div>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* Total Income Summary */}
+              <div className="border-t pt-4">
+                <div className="flex justify-between items-center text-lg font-semibold">
+                  <span>Total Monthly Income:</span>
+                  <span className="text-green-600">
+                    ${getTotalIncome(selectedRecord).toLocaleString()} SGD
+                  </span>
+                </div>
+              </div>
             </div>
 
             {selectedRecord.flags.length > 0 && (

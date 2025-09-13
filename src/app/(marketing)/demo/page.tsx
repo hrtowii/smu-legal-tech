@@ -1,29 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import {
+  FinancialForm,
+  ApplicantIncome,
+  HouseholdIncome,
+  OtherIncomeSource,
+} from "../../api/data";
 
-interface ExtractedData {
-  applicantName: string;
-  contactNumber: string;
-  email: string;
-  address: string;
-  dateOfBirth: string;
-  charges: string;
-  priorConvictions: string;
-  employmentStatus: string;
-  monthlyIncome: string;
-  dependents: string;
-  emergencyContact: string;
+interface ExtractedFinancialForm extends FinancialForm {
   flags: string[];
   confidence: number;
 }
 
 export default function Demo() {
   const [file, setFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [extractedData, setExtractedData] = useState<ExtractedData | null>(
-    null,
-  );
+  const [extractedData, setExtractedData] =
+    useState<ExtractedFinancialForm | null>(null);
   const [currentStep, setCurrentStep] = useState<
     "upload" | "processing" | "review" | "export"
   >("upload");
@@ -32,6 +27,13 @@ export default function Demo() {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
+
+      // Create image preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
     }
   };
 
@@ -52,10 +54,13 @@ export default function Demo() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log("Received data:", data); // Debug log
         setExtractedData(data);
         setCurrentStep("review");
       } else {
-        console.error("Extraction failed");
+        const errorData = await response.json();
+        console.error("Extraction failed:", errorData);
+        alert(`Extraction failed: ${errorData.error || "Unknown error"}`);
         setCurrentStep("upload");
       }
     } catch (error) {
@@ -66,11 +71,106 @@ export default function Demo() {
     }
   };
 
-  const handleDataChange = (field: keyof ExtractedData, value: string) => {
+  const handleFinancialSituationChange = (value: string) => {
     if (extractedData) {
       setExtractedData({
         ...extractedData,
+        financialSituationNote: value,
+      });
+    }
+  };
+
+  const handleApplicantIncomeChange = (
+    index: number,
+    field: keyof ApplicantIncome,
+    value: string | number,
+  ) => {
+    if (extractedData) {
+      const newApplicantIncome = [...(extractedData.applicantIncome || [])];
+      newApplicantIncome[index] = {
+        ...newApplicantIncome[index],
         [field]: value,
+      };
+      setExtractedData({
+        ...extractedData,
+        applicantIncome: newApplicantIncome,
+      });
+    }
+  };
+
+  const handleHouseholdIncomeChange = (
+    index: number,
+    field: keyof HouseholdIncome,
+    value: string | number,
+  ) => {
+    if (extractedData) {
+      const newHouseholdIncome = [...(extractedData.householdIncome || [])];
+      newHouseholdIncome[index] = {
+        ...newHouseholdIncome[index],
+        [field]: value,
+      };
+      setExtractedData({
+        ...extractedData,
+        householdIncome: newHouseholdIncome,
+      });
+    }
+  };
+
+  const handleOtherIncomeChange = (
+    index: number,
+    field: keyof OtherIncomeSource,
+    value: string | number,
+  ) => {
+    if (extractedData) {
+      const newOtherIncome = [...(extractedData.otherIncomeSources || [])];
+      newOtherIncome[index] = {
+        ...newOtherIncome[index],
+        [field]: value,
+      };
+      setExtractedData({
+        ...extractedData,
+        otherIncomeSources: newOtherIncome,
+      });
+    }
+  };
+
+  const addApplicantIncomeRow = () => {
+    if (extractedData) {
+      setExtractedData({
+        ...extractedData,
+        applicantIncome: [
+          ...(extractedData.applicantIncome || []),
+          { occupation: "", grossMonthlyIncomeSGD: 0, periodOfEmployment: "" },
+        ],
+      });
+    }
+  };
+
+  const addHouseholdIncomeRow = () => {
+    if (extractedData) {
+      setExtractedData({
+        ...extractedData,
+        householdIncome: [
+          ...(extractedData.householdIncome || []),
+          {
+            name: "",
+            relationshipToApplicant: "",
+            occupation: "",
+            grossMonthlyIncomeSGD: 0,
+          },
+        ],
+      });
+    }
+  };
+
+  const addOtherIncomeRow = () => {
+    if (extractedData) {
+      setExtractedData({
+        ...extractedData,
+        otherIncomeSources: [
+          ...(extractedData.otherIncomeSources || []),
+          { description: "", amountSGD: 0 },
+        ],
       });
     }
   };
@@ -79,21 +179,83 @@ export default function Demo() {
     if (!extractedData) return;
 
     const csvData = [
-      ["Field", "Value"],
-      ["Applicant Name", extractedData.applicantName],
-      ["Contact Number", extractedData.contactNumber],
-      ["Email", extractedData.email],
-      ["Address", extractedData.address],
-      ["Date of Birth", extractedData.dateOfBirth],
-      ["Charges", extractedData.charges],
-      ["Prior Convictions", extractedData.priorConvictions],
-      ["Employment Status", extractedData.employmentStatus],
-      ["Monthly Income", extractedData.monthlyIncome],
-      ["Dependents", extractedData.dependents],
-      ["Emergency Contact", extractedData.emergencyContact],
-      ["Flags", extractedData.flags.join("; ")],
-      ["Confidence Score", extractedData.confidence.toString()],
+      ["Section", "Field", "Value"],
+      [
+        "Financial Situation",
+        "Note",
+        extractedData.financialSituationNote || "",
+      ],
     ];
+
+    // Add applicant income data
+    if (extractedData.applicantIncome) {
+      extractedData.applicantIncome.forEach((income, index) => {
+        csvData.push([
+          `Applicant Income ${index + 1}`,
+          "Occupation",
+          income.occupation || "",
+        ]);
+        csvData.push([
+          `Applicant Income ${index + 1}`,
+          "Monthly Income (SGD)",
+          income.grossMonthlyIncomeSGD?.toString() || "0",
+        ]);
+        csvData.push([
+          `Applicant Income ${index + 1}`,
+          "Employment Period",
+          income.periodOfEmployment || "",
+        ]);
+      });
+    }
+
+    // Add household income data
+    if (extractedData.householdIncome) {
+      extractedData.householdIncome.forEach((income, index) => {
+        csvData.push([
+          `Household Income ${index + 1}`,
+          "Name",
+          income.name || "",
+        ]);
+        csvData.push([
+          `Household Income ${index + 1}`,
+          "Relationship",
+          income.relationshipToApplicant || "",
+        ]);
+        csvData.push([
+          `Household Income ${index + 1}`,
+          "Occupation",
+          income.occupation || "",
+        ]);
+        csvData.push([
+          `Household Income ${index + 1}`,
+          "Monthly Income (SGD)",
+          income.grossMonthlyIncomeSGD?.toString() || "0",
+        ]);
+      });
+    }
+
+    // Add other income sources
+    if (extractedData.otherIncomeSources) {
+      extractedData.otherIncomeSources.forEach((income, index) => {
+        csvData.push([
+          `Other Income ${index + 1}`,
+          "Description",
+          income.description || "",
+        ]);
+        csvData.push([
+          `Other Income ${index + 1}`,
+          "Amount (SGD)",
+          income.amountSGD?.toString() || "0",
+        ]);
+      });
+    }
+
+    csvData.push(["Metadata", "Flags", extractedData.flags.join("; ")]);
+    csvData.push([
+      "Metadata",
+      "Confidence Score",
+      extractedData.confidence.toString(),
+    ]);
 
     const csvContent = csvData
       .map((row) => row.map((cell) => `"${cell}"`).join(","))
@@ -102,7 +264,7 @@ export default function Demo() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `legal_form_extraction_${new Date().getTime()}.csv`;
+    a.download = `financial_form_extraction_${new Date().getTime()}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -120,19 +282,20 @@ export default function Demo() {
       });
 
       if (response.ok) {
-        alert("Data saved successfully!");
+        alert("Financial form saved successfully!");
         setCurrentStep("export");
       } else {
-        alert("Failed to save data");
+        alert("Failed to save financial form");
       }
     } catch (error) {
       console.error("Error saving data:", error);
-      alert("Error saving data");
+      alert("Error saving financial form");
     }
   };
 
   const resetDemo = () => {
     setFile(null);
+    setImagePreview(null);
     setExtractedData(null);
     setCurrentStep("upload");
   };
@@ -141,11 +304,11 @@ export default function Demo() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-gray-900 mb-6">
-          Interactive Demo
+          Financial Form Demo
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Upload a handwritten legal form and watch our AI extract structured
-          data in real-time
+          Upload a handwritten financial form and watch our AI extract
+          structured income data in real-time
         </p>
       </div>
 
@@ -176,55 +339,95 @@ export default function Demo() {
       {/* Upload Step */}
       {currentStep === "upload" && (
         <div className="bg-white p-8 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-semibold mb-6">1. Upload Legal Form</h2>
+          <h2 className="text-2xl font-semibold mb-6">
+            1. Upload Financial Form
+          </h2>
 
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-            <input
-              type="file"
-              onChange={handleFileUpload}
-              accept=".pdf,.jpg,.jpeg,.png"
-              className="hidden"
-              id="file-upload"
-            />
-            <label htmlFor="file-upload" className="cursor-pointer">
-              <div className="text-gray-600">
-                <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
-                  stroke="currentColor"
-                  fill="none"
-                  viewBox="0 0 48 48"
-                >
-                  <path
-                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <p className="mt-2 text-lg">
-                  <span className="font-medium text-blue-600 hover:text-blue-500">
-                    Click to upload
-                  </span>{" "}
-                  or drag and drop
-                </p>
-                <p className="text-sm text-gray-500">
-                  PDF, PNG, JPG up to 10MB
-                </p>
+          {!file ? (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+              <input
+                type="file"
+                onChange={handleFileUpload}
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden"
+                id="file-upload"
+              />
+              <label htmlFor="file-upload" className="cursor-pointer">
+                <div className="text-gray-600">
+                  <svg
+                    className="mx-auto h-12 w-12 text-gray-400"
+                    stroke="currentColor"
+                    fill="none"
+                    viewBox="0 0 48 48"
+                  >
+                    <path
+                      d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <p className="mt-2 text-lg">
+                    <span className="font-medium text-blue-600 hover:text-blue-500">
+                      Click to upload
+                    </span>{" "}
+                    or drag and drop
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    PDF, PNG, JPG up to 10MB
+                  </p>
+                </div>
+              </label>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-lg font-semibold mb-3">Image Preview:</h3>
+                  <div className="flex justify-center">
+                    <img
+                      src={imagePreview}
+                      alt="Uploaded financial form"
+                      className="max-w-full max-h-96 object-contain border rounded shadow"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* File Info and Actions */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {file.name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setFile(null);
+                        setImagePreview(null);
+                      }}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium"
+                    >
+                      Remove
+                    </button>
+                    <button
+                      onClick={handleExtract}
+                      disabled={isProcessing}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg font-semibold"
+                    >
+                      {isProcessing
+                        ? "Processing..."
+                        : "Extract Financial Data"}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </label>
-          </div>
-
-          {file && (
-            <div className="mt-6">
-              <p className="text-sm text-gray-600 mb-4">
-                Selected file: {file.name}
-              </p>
-              <button
-                onClick={handleExtract}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold"
-              >
-                Extract Data
-              </button>
             </div>
           )}
         </div>
@@ -233,11 +436,12 @@ export default function Demo() {
       {/* Processing Step */}
       {currentStep === "processing" && (
         <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-          <h2 className="text-2xl font-semibold mb-6">2. Processing Form</h2>
+          <h2 className="text-2xl font-semibold mb-6">
+            2. Processing Financial Form
+          </h2>
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
           <p className="text-gray-600 mt-4">
-            Our AI is analyzing the handwritten form and extracting structured
-            data...
+            Our AI is analyzing the financial form and extracting income data...
           </p>
         </div>
       )}
@@ -247,7 +451,7 @@ export default function Demo() {
         <div className="bg-white p-8 rounded-lg shadow-lg">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-semibold">
-              3. Review & Edit Extracted Data
+              3. Review & Edit Financial Data
             </h2>
             <div className="flex items-center">
               <span className="text-sm text-gray-600 mr-2">Confidence:</span>
@@ -278,29 +482,266 @@ export default function Demo() {
             </div>
           )}
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {Object.entries(extractedData)
-              .filter(([key]) => !["flags", "confidence"].includes(key))
-              .map(([key, value]) => (
-                <div key={key}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {key
-                      .replace(/([A-Z])/g, " $1")
-                      .replace(/^./, (str) => str.toUpperCase())}
-                  </label>
-                  <input
-                    type="text"
-                    value={value as string}
-                    onChange={(e) =>
-                      handleDataChange(
-                        key as keyof ExtractedData,
-                        e.target.value,
-                      )
-                    }
-                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
+          <div className="space-y-8">
+            {/* Debug Info */}
+            {process.env.NODE_ENV === "development" && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+                <h4 className="text-sm font-medium text-yellow-800 mb-2">
+                  Debug Info:
+                </h4>
+                <pre className="text-xs text-yellow-700 overflow-auto">
+                  {JSON.stringify(extractedData, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {/* Financial Situation Note */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Financial Situation Note
+              </label>
+              <textarea
+                value={extractedData.financialSituationNote || ""}
+                onChange={(e) => handleFinancialSituationChange(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                rows={3}
+                placeholder="Any additional notes about financial situation..."
+              />
+            </div>
+
+            {/* Applicant Income */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Applicant Income</h3>
+                <button
+                  onClick={addApplicantIncomeRow}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                >
+                  Add Row
+                </button>
+              </div>
+              {(!extractedData.applicantIncome ||
+                extractedData.applicantIncome.length === 0) && (
+                <div className="text-gray-500 text-sm mb-4">
+                  No applicant income data extracted. Click "Add Row" to
+                  manually add entries.
+                </div>
+              )}
+              {extractedData.applicantIncome?.map((income, index) => (
+                <div
+                  key={index}
+                  className="grid md:grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Occupation
+                    </label>
+                    <input
+                      type="text"
+                      value={income.occupation || ""}
+                      onChange={(e) =>
+                        handleApplicantIncomeChange(
+                          index,
+                          "occupation",
+                          e.target.value,
+                        )
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Monthly Income (SGD)
+                    </label>
+                    <input
+                      type="number"
+                      value={income.grossMonthlyIncomeSGD || 0}
+                      onChange={(e) =>
+                        handleApplicantIncomeChange(
+                          index,
+                          "grossMonthlyIncomeSGD",
+                          parseFloat(e.target.value),
+                        )
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Employment Period
+                    </label>
+                    <input
+                      type="text"
+                      value={income.periodOfEmployment || ""}
+                      onChange={(e) =>
+                        handleApplicantIncomeChange(
+                          index,
+                          "periodOfEmployment",
+                          e.target.value,
+                        )
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
                 </div>
               ))}
+            </div>
+
+            {/* Household Income */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Household Income</h3>
+                <button
+                  onClick={addHouseholdIncomeRow}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                >
+                  Add Row
+                </button>
+              </div>
+              {(!extractedData.householdIncome ||
+                extractedData.householdIncome.length === 0) && (
+                <div className="text-gray-500 text-sm mb-4">
+                  No household income data extracted. Click "Add Row" to
+                  manually add entries.
+                </div>
+              )}
+              {extractedData.householdIncome?.map((income, index) => (
+                <div
+                  key={index}
+                  className="grid md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      value={income.name || ""}
+                      onChange={(e) =>
+                        handleHouseholdIncomeChange(
+                          index,
+                          "name",
+                          e.target.value,
+                        )
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Relationship
+                    </label>
+                    <input
+                      type="text"
+                      value={income.relationshipToApplicant || ""}
+                      onChange={(e) =>
+                        handleHouseholdIncomeChange(
+                          index,
+                          "relationshipToApplicant",
+                          e.target.value,
+                        )
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Occupation
+                    </label>
+                    <input
+                      type="text"
+                      value={income.occupation || ""}
+                      onChange={(e) =>
+                        handleHouseholdIncomeChange(
+                          index,
+                          "occupation",
+                          e.target.value,
+                        )
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Monthly Income (SGD)
+                    </label>
+                    <input
+                      type="number"
+                      value={income.grossMonthlyIncomeSGD || 0}
+                      onChange={(e) =>
+                        handleHouseholdIncomeChange(
+                          index,
+                          "grossMonthlyIncomeSGD",
+                          parseFloat(e.target.value),
+                        )
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Other Income Sources */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Other Income Sources</h3>
+                <button
+                  onClick={addOtherIncomeRow}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                >
+                  Add Row
+                </button>
+              </div>
+              {(!extractedData.otherIncomeSources ||
+                extractedData.otherIncomeSources.length === 0) && (
+                <div className="text-gray-500 text-sm mb-4">
+                  No other income sources extracted. Click "Add Row" to manually
+                  add entries.
+                </div>
+              )}
+              {extractedData.otherIncomeSources?.map((income, index) => (
+                <div
+                  key={index}
+                  className="grid md:grid-cols-2 gap-4 mb-4 p-4 bg-gray-50 rounded"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <input
+                      type="text"
+                      value={income.description || ""}
+                      onChange={(e) =>
+                        handleOtherIncomeChange(
+                          index,
+                          "description",
+                          e.target.value,
+                        )
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount (SGD)
+                    </label>
+                    <input
+                      type="number"
+                      value={income.amountSGD || 0}
+                      onChange={(e) =>
+                        handleOtherIncomeChange(
+                          index,
+                          "amountSGD",
+                          parseFloat(e.target.value),
+                        )
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="flex gap-4 mt-8">
@@ -324,7 +765,7 @@ export default function Demo() {
       {currentStep === "export" && extractedData && (
         <div className="bg-white p-8 rounded-lg shadow-lg">
           <h2 className="text-2xl font-semibold mb-6">
-            4. Export or Save Data
+            4. Export or Save Financial Data
           </h2>
 
           <div className="grid md:grid-cols-2 gap-8">
@@ -333,7 +774,7 @@ export default function Demo() {
                 Download CSV
               </h3>
               <p className="text-blue-700 mb-4">
-                Export the extracted data as a CSV file for use in spreadsheets
+                Export the financial data as a CSV file for use in spreadsheets
                 or other systems.
               </p>
               <button

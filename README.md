@@ -4,7 +4,7 @@
 * nextjs
 ## Run:
 * bun i
-* bun run dev
+* bun --bun run dev
 
 ## Todo:
 * Convert handwritten pdf in form ![https://static.wixstatic.com/media/f24d94_3745dc153ff04b37a1531e0f3b89e78a~mv2.jpg/v1/fill/w_1009,h_1000,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/photo.jpg](here) to proper form data.
