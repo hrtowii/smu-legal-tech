@@ -70,7 +70,7 @@ const Navbar = () => {
           >
             <Link href="/" className="flex items-center">
               <span className="text-2xl font-medium text-gray-900" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}>
-                Scribe
+                UploadJustice™
               </span>
             </Link>
           </motion.div>

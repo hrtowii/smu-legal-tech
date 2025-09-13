@@ -35,7 +35,7 @@ export default function Home() {
   transition={{ duration: 1 }}
   className="relative text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6"
 >
-  Tran
+  Upload
           <motion.span
             initial={{ backgroundPosition: "0% 50%" }}
             animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
@@ -55,9 +55,10 @@ export default function Home() {
               display: "inline-block",
             }}
           >
-            scribe
+            
+            Justice™
           </motion.span>
-          {" "} your forms.
+          
         </motion.h1>
 
         <motion.p
